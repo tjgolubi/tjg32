@@ -1,0 +1,55 @@
+
+Compiled with -O0 -march=native
+Running Crc0
+Running Crc1
+Running Crc2
+Crc0::Update = 59abc193
+Crc1::Update = 59abc193
+Crc2::Update = 59abc193
+Crc0::Update time: 8118ms
+Crc1::Update time: 3682ms
+Crc2::Update time: 4008ms
+
+Compiled with -O1 -march=native
+Running Crc0
+Running Crc1
+Running Crc2
+Crc0::Update = 59abc193
+Crc1::Update = 59abc193
+Crc2::Update = 59abc193
+Crc0::Update time: 1095ms
+Crc1::Update time: 1095ms
+Crc2::Update time: 442ms
+
+Compiled with -O2 -march=native
+Running Crc0
+Running Crc1
+Running Crc2
+Crc0::Update = 59abc193
+Crc1::Update = 59abc193
+Crc2::Update = 59abc193
+Crc0::Update time: 1097ms
+Crc1::Update time: 832ms
+Crc2::Update time: 919ms
+
+Compiled with -O3 -march=native
+Running Crc0
+Running Crc1
+Running Crc2
+Crc0::Update = 59abc193
+Crc1::Update = 59abc193
+Crc2::Update = 59abc193
+Crc0::Update time: 1097ms
+Crc1::Update time: 832ms
+Crc2::Update time: 919ms
+
+Compiled with -Os -march=native
+Running Crc0
+Running Crc1
+Running Crc2
+Crc0::Update = 59abc193
+Crc1::Update = 59abc193
+Crc2::Update = 59abc193
+Crc0::Update time: 839ms
+Crc1::Update time: 1096ms
+Crc2::Update time: 919ms
