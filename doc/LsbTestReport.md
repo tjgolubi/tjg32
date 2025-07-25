@@ -24,7 +24,10 @@ very slow at only 22 MiB/s.
 |--------|----------------|----------------------------------------------------|
 | `Crc0` | PlainCrc       | Classic CRC32 with `if (crc & 1)` branch           |
 | `Crc1` | TraditionalCrc | Loop with mask-based conditional XOR, no branches  |
-| `Crc2` | GenericCrc     | Unrolled, branchless, template-based, compile-time |
+| `Crc2` | HandCrc        | Unrolled, branchless, non-template, compile-time   |
+| `Crc3` | GenericCrc     | Unrolled, branchless, template-based, compile-time |
+| `Crc4` | MaskCRc        | Unrolled, branchless, non-template, compile-time   |
+| `Crc5` | DumbCrc        | Loop shifts both input and crc                     |
 
 All variants produced correct output: `0x59abc193`.
 
@@ -33,31 +36,43 @@ The input data was generated using the following algorithm.
 ```cpp
 std::mt19937 rng(12345);
 for (std::size_t i = 0; i != (1<<20); ++i)
-  data.push_back(static_cast<std::byte>(rng() & 0xff);
+  data.push_back(static_cast<std::byte>(rng() & 0xff));
 ```
 
 # Performance Results
 
 ### CRC Benchmark Results (Time in ms)
 
-| Optimization | PlainCrc | TraditionalCrc | GenericCrc  |
-|:------------:|---------:|---------------:|------------:|
-|     -O0      |     4526 |            981 |        1936 |
-|     -O1      |      720 |            705 |         321 |
-|     -O2      |      703 |            708 |         320 |
-|     -O3      |      468 |            708 |         321 |
-|     -Os      |      710 |            701 |         299 |
+| Algorithm      |  -O0   |  -O1   |  -O2   |  -O3   |  -Og   |  -Os   |
+|:---------------|-------:|-------:|-------:|-------:|-------:|-------:|
+| PlainCrc       | 4436ms |  704ms |  708ms |  468ms | 2039ms |  706ms |
+| TraditionalCrc | 1126ms |  699ms |  700ms |  702ms |  701ms |  705ms |
+| HandCrc        |  652ms |  298ms |  319ms |  319ms |  279ms |  256ms |
+| GenericCrc     | 1942ms |  320ms |  320ms |  320ms |  417ms |  299ms |
+| MaskCrc        |  752ms |  346ms |  771ms |  771ms |  343ms |  336ms |
+| DumbCrc        | 7348ms |  849ms |  849ms |  844ms | 2118ms |  849ms |
 
-Full testresults can be found [here](LsbTestResults.txt).
+| Optimization | Description                                |
+|:------------:|:-------------------------------------------|
+|     -O0      | No optimation                              |
+|     -O1      | Minimal optimization, compiles quickly     |
+|     -O2      | Normal optimization, balances speed/space  |
+|     -O3      | Maximum optimization for speed             |
+|     -Os      | Optimizes for size                         |
+|     -Og      | Optimization suitable for debugging        |
+
+Full [test results](LsbTestResults.txt).
+Full documentation of GCC options that control
+[optimization](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html).
 
 ## Key Observations
-- At `-O1`, `GenericCrc` (Crc2) is the clear winner--more than 2x faster than
-  the next best.
+- At `-O1` thru `-Os`, `GenericCrc` is the clear winner--more than 2x faster
+  than the next best.
 
 - All variants exceed 100 MiB/s throughput under most settings.
 
-- `GenericCrc::Update()` retains strong performance across all flags, thanks
-  to branchless, inlined structure.
+- `GenericCrc` retains strong performance across all flags, thanks
+  to branchless, inlined structure, but HandCrc is faster for debug builds.
 
 # Source Code
 
@@ -170,20 +185,25 @@ public:
 - At `-O0`, unoptimized logic penalizes looped variants the most; surprisingly,
   the loopless version remains relatively efficient.
 
-# Conclusions
+# References
 
 1. [Stephan Brumme - *Fast CRC32 Calculations*](https://create.stephan-brumme.com/crc32/)  
-   This resource describes the branchless technique used in `TraditionalCrc`  
-   and the unrolled loop approach used in `GenericCrc`. The latter technique  
-   originates from the book [Hacker's Delight](https://en.wikipedia.org/wiki/Hacker%27s_Delight)
+   This resource describes the branchless technique used in `TraditionalCrc`
+   and the unrolled loop approach used in `GenericCrc`. The latter technique
+   originates from the book
+   [Hacker's Delight](https://en.wikipedia.org/wiki/Hacker%27s_Delight)
    by Henry S. Warren, Jr.  
-   This study adds C++ template-based unrolling to optimize the logic at  
-   compile time.
+   This study adds C++ template-based unrolling to optimize the logic at compile time.
 
 2. Wikipedia contributors,
    *Computation of cyclic redundancy checks - CRC-32 Example*, available at:
    [Wikipedia - CRC-32 Example](https://en.wikipedia.org/wiki/Computation_of_cyclic_redundancy_checks@CRC-32_example)  
    Provides a worked example of computing CRC-32, including step-by-step bitwise operations.
+
+3. [hcs0 - Hacker's Delight CRC Example](https://github.com/hcs0/Hackers-Delight/blob/master/crc.c.txt)  
+   A faithful implementation of the CRC logic from *Hacker's Delight* in C,
+   hosted on GitHub.  
+   Useful for comparison against template-based C++ implementations.
 
 ---
 

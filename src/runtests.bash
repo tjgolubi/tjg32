@@ -17,3 +17,6 @@ echo -e "\nCompiled with -O3 -march=native" >> test_results.txt
 g++ -std=c++23 -Os -march=native tjg32.cpp -o tjg32.exe
 echo -e "\nCompiled with -Os -march=native" >> test_results.txt
 ./tjg32.exe | tee --append test_results.txt
+g++ -std=c++23 -Og -march=native tjg32.cpp -o tjg32.exe
+echo -e "\nCompiled with -Og -march=native" >> test_results.txt
+./tjg32.exe | tee --append test_results.txt

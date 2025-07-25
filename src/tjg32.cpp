@@ -1,3 +1,5 @@
+#include "meta.h"
+
 #include <chrono>
 #include <random>
 #include <span>
@@ -57,6 +59,7 @@ template<std::unsigned_integral Uint, Uint Poly>
 class GenericCrc {
 public:
   static constexpr auto Name = "GenericCrc";
+  using crc_type = Uint;
 
 private:
   static constexpr auto Shift = 8 * sizeof(Uint) - 1;
@@ -87,7 +90,7 @@ public:
     return crc;
   }
 
-  static constexpr Uint Update(Uint crc, std::span<std::byte> buf) {
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
     for (auto b: buf)
       crc = Update(crc, b);
     return crc;
@@ -95,8 +98,65 @@ public:
 }; // GenericCrc
 
 template<std::unsigned_integral Uint, Uint Poly>
+class HandCrc {
+public:
+  static constexpr auto Name = "HandCrc";
+  using crc_type = Uint;
+
+  static constexpr Uint Update(Uint crc, std::byte in) {
+    using Int = std::make_signed_t<Uint>;
+    crc ^= std::to_integer<Uint>(in);
+    auto icrc = static_cast<Int>(crc);
+    auto c = (((icrc << 31) >> 31) & ((Poly >> 7) ^ (Poly >> 1)))
+           ^ (((icrc << 30) >> 31) & ((Poly >> 6) ^  Poly))
+           ^ (((icrc << 29) >> 31) &  (Poly >> 5))
+           ^ (((icrc << 28) >> 31) &  (Poly >> 4))
+           ^ (((icrc << 27) >> 31) &  (Poly >> 3))
+           ^ (((icrc << 26) >> 31) &  (Poly >> 2))
+           ^ (((icrc << 25) >> 31) &  (Poly >> 1))
+           ^ (((icrc << 24) >> 31) &  (Poly >> 0));
+    return (crc >> 8) ^ static_cast<Uint>(c);
+  }
+
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
+    for (auto b: buf)
+      crc = Update(crc, b);
+    return crc;
+  }
+}; // HandCrc
+
+template<std::unsigned_integral Uint, Uint Poly>
+class MaskCrc {
+public:
+  static constexpr auto Name = "MaskCrc";
+  using crc_type = Uint;
+
+  static constexpr Uint Update(Uint crc, std::byte in) {
+    using Int = std::make_signed_t<Uint>;
+    constexpr auto Mask = Uint{1};
+    crc ^= std::to_integer<Uint>(in);
+    auto c = (-((crc >> 0) & Mask) & ((Poly >> 7) ^ (Poly >> 1)))
+           ^ (-((crc >> 1) & Mask) & ((Poly >> 6) ^  Poly))
+           ^ (-((crc >> 2) & Mask) &  (Poly >> 5))
+           ^ (-((crc >> 3) & Mask) &  (Poly >> 4))
+           ^ (-((crc >> 4) & Mask) &  (Poly >> 3))
+           ^ (-((crc >> 5) & Mask) &  (Poly >> 2))
+           ^ (-((crc >> 6) & Mask) &  (Poly >> 1))
+           ^ (-((crc >> 7) & Mask) &  (Poly >> 0));
+    return (crc >> 8) ^ static_cast<Uint>(c);
+  }
+
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
+    for (auto b: buf)
+      crc = Update(crc, b);
+    return crc;
+  }
+}; // MaskCrc
+
+template<std::unsigned_integral Uint, Uint Poly>
 struct TraditionalCrc {
   static constexpr auto Name = "TraditionalCrc";
+  using crc_type = Uint;
 
   // Optimized to remove if-statement.
   static constexpr Uint Update(Uint crc, std::byte in) {
@@ -106,7 +166,7 @@ struct TraditionalCrc {
     return crc;
   }
 
-  static constexpr Uint Update(Uint crc, std::span<std::byte> buf) {
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
     for (auto b: buf)
       crc = Update(crc, b);
     return crc;
@@ -116,6 +176,7 @@ struct TraditionalCrc {
 template<std::unsigned_integral Uint, Uint Poly>
 struct PlainCrc {
   static constexpr auto Name = "PlainCrc";
+  using crc_type = Uint;
 
   static constexpr Uint Update(Uint crc, std::byte in) {
     crc ^= std::to_integer<Uint>(in);
@@ -128,12 +189,38 @@ struct PlainCrc {
     return crc;
   } // Update
 
-  static constexpr Uint Update(Uint crc, std::span<std::byte> buf) {
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
     for (auto b: buf)
       crc = Update(crc, b);
     return crc;
   }
 }; // PlainCrc
+
+template<std::unsigned_integral Uint, Uint Poly>
+struct DumbCrc {
+  static constexpr auto Name = "DumbCrc";
+  using crc_type = Uint;
+
+  static constexpr auto RPoly = Reflect(Poly);
+
+  static constexpr Uint Update(Uint crc, std::byte in) {
+    for (int i = 0; i != 8; ++i) {
+      auto lsb = static_cast<bool>(
+                        (std::byte{(std::uint8_t)crc} ^ in) & std::byte{0x01});
+      crc >>= 1;
+      if (lsb)
+        crc ^= Poly;
+      in >>= 1;
+    }
+    return crc;
+  } // Update
+
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
+    for (auto b: buf)
+      crc = Update(crc, b);
+    return crc;
+  }
+}; // DumbCrc
 
 struct TimeResult {
   std::uint32_t crc = std::uint32_t{0};
@@ -147,6 +234,20 @@ constexpr TimeResult Time(std::regular_invocable auto f) {
   auto end = steady_clock::now();
   return TimeResult{crc, duration_cast<milliseconds>(end - start)};
 }
+
+template<class Crc>
+TimeResult Test(int count, std::span<const std::byte> data) {
+  using Uint = Crc::crc_type;
+  std::cout << "Running " << Crc::Name<< std::flush;
+  auto result = Time([&]() {
+    auto crc = ~Uint{0};
+    for (int i=0; i != count; ++i)
+      crc = Crc::Update(crc, data);
+    return ~crc;
+  });
+  std::cout << std::endl;
+  return result;
+} // Test
 
 struct SaveIo {
   std::ostream& os;
@@ -177,9 +278,27 @@ int main() {
               << std::endl;
   }
 
-  using Crc0 = PlainCrc<Uint, ReflectPoly>;
+  using Crc0 = PlainCrc      <Uint, ReflectPoly>;
   using Crc1 = TraditionalCrc<Uint, ReflectPoly>;
-  using Crc2 = GenericCrc<Uint, ReflectPoly>;
+  using Crc2 = HandCrc       <Uint, ReflectPoly>;
+  using Crc3 = GenericCrc    <Uint, ReflectPoly>;
+  using Crc4 = MaskCrc       <Uint, ReflectPoly>;
+  using Crc5 = DumbCrc       <Uint, ReflectPoly>;
+
+  using Crcs = meta::TypeList<Crc0, Crc1, Crc2, Crc3, Crc4, Crc5>;
+
+  {
+    using namespace std;
+    auto buf = array{ '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+    auto crc = ~Uint{0};
+    crc = Crc1::Update(crc, as_bytes(span{buf}));
+    crc = ~crc;
+    auto save = SaveIo{};
+    SetHex();
+    cout << "Test Sequence CRC = " << crc;
+    cout << ((crc == 0xcbf43926) ? " correct" : " WRONG");
+    cout << endl;
+  }
 
   constexpr int LoopCount = 100;
 
@@ -192,47 +311,37 @@ int main() {
   for (int i = 0; i != size; ++i)
     data.push_back(static_cast<std::byte>(rng() & 0xff));
 
-  std::cout << "Running Crc0 " << Crc0::Name<< std::endl;
-  auto result0 = Time([&]() {
-    auto crc = ~Uint{0};
-    for (int i=0; i != LoopCount; ++i)
-      crc = Crc0::Update(crc, data);
-    return ~crc;
-  });
+  std::vector<std::pair<std::string_view, TimeResult>> results;
 
-  std::cout << "Running Crc1 " << Crc1::Name << std::endl;
-  auto result1 = Time([&]() {
-    auto crc = ~Uint{0};
-    for (int i=0; i != LoopCount; ++i)
-      crc = Crc1::Update(crc, data);
-    return ~crc;
-  });
-
-  std::cout << "Running Crc2 " << Crc2::Name << std::endl;
-  auto result2 = Time([&]() {
-    auto crc = ~Uint{0};
-    for (int i=0; i != LoopCount; ++i)
-      crc = Crc2::Update(crc, data);
-    return ~crc;
+  meta::ForEachType<Crcs>([&]<typename Crc>() {
+    auto result = Test<Crc>(LoopCount, data);
+    results.emplace_back(Crc::Name, result);
   });
 
   {
     using namespace std;
     auto save = SaveIo{cout};
     SetHex(cout);
-    cout << "\nCrc0::Update = " << setw(10) << result0.crc
-         << "\nCrc1::Update = " << setw(10) << result1.crc
-         << "\nCrc2::Update = " << setw(10) << result2.crc
-         << endl;
+    for (int i = 0; i != std::ssize(results); ++i) {
+      const auto& item = results[i];
+      const auto& result = item.second;
+      const auto crc = result.crc;
+      cout << "\nCrc" << dec << i << "::Update = " << hex << setw(10) << crc
+                                           << ' ' << setw(10) << Reflect(crc);
+    }
+    cout << endl;
   }
 
   {
     using namespace std;
-    cout
-      << "\nCrc0::Update time: " << setw(6) << result0.ms << ' ' << Crc0::Name
-      << "\nCrc1::Update time: " << setw(6) << result1.ms << ' ' << Crc1::Name
-      << "\nCrc2::Update time: " << setw(6) << result2.ms << ' ' << Crc2::Name
-      << endl;
+    for (int i = 0; i != std::ssize(results); ++i) {
+      const auto& item = results[i];
+      const auto& name = item.first;
+      const auto& result = item.second;
+      cout << "\nCrc" << i << "::Update time: " << setw(6) << result.ms
+           << ' ' << name;
+    }
+    cout << endl;
   }
 
   return EXIT_SUCCESS;

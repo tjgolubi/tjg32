@@ -23,7 +23,7 @@ INCLUDE:=$(PROJDIR)
 # Must use "=" because LIBS will be changed below.
 LIBS=
 
-CFLAGS=-O3
+CFLAGS=-O2
 
 include $(SWDEV)/$(COMPILER).mk
 include $(SWDEV)/build.mk
