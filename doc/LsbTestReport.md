@@ -7,13 +7,16 @@
 This document summarizes an empirical study of three CRC32 software
 implementations benchmarked across different compiler optimization levels
 using Clang++ and the `-march=native` flag. All tests were run on an
-ARM-based tablet, and the CRC computed over 100 iterations of a 1-MiB pseudo-
-random input buffer using the standard IEEE CRC32 polynomial `0xEDB88320`.
+AMD Ryzen 9 5950X-based PC, and the CRC computed over 100 iterations of a
+1-MiB pseudo-random input buffer using the (reflected) standard IEEE CRC32
+polynomial 0x04c11db7 (`0xedb88320`).
 
-The metaprogrammed `GenericCrc` class was the fastest overall. At
-`-O1`, it ran over twice as fast as the next best. At `-Os`, `PlainCrc`
-performed best due to compact code. All methods achieved over 100 MiB/s
-throughput.
+The metaprogrammed `GenericCrc` class was the fastest overall at over 300 MiB/s
+for all optimization levels except -O0.
+At optimization levels above zero, most other algorithms achieved 140 MiB/s.
+At `-O0`, `TraditionalCrc`was fastest 100 MiB/s (GenericCrc struggled at 52
+MiB/s).  Surprisingly, PlainCrc achieved 214 MiB/s at -O3, but at -O0 it was
+very slow at only 22 MiB/s.
 
 # Implementations Tested
 
@@ -23,15 +26,14 @@ throughput.
 | `Crc1` | TraditionalCrc | Loop with mask-based conditional XOR, no branches  |
 | `Crc2` | GenericCrc     | Unrolled, branchless, template-based, compile-time |
 
-All variants produced correct output: `59ABC193`.
+All variants produced correct output: `0x59abc193`.
 
 The input data was generated using the following algorithm.
 
 ```cpp
 std::mt19937 rng(12345);
-std::uniform_int_distribution<int> dist(0, 255);
-for (std::size_t i = 0; i < (1<<20); ++i)
-    data.push_back(static_cast<std::byte>(dist(rng)));
+for (std::size_t i = 0; i != (1<<20); ++i)
+  data.push_back(static_cast<std::byte>(rng() & 0xff);
 ```
 
 # Performance Results
@@ -40,18 +42,17 @@ for (std::size_t i = 0; i < (1<<20); ++i)
 
 | Optimization | PlainCrc | TraditionalCrc | GenericCrc  |
 |:------------:|---------:|---------------:|------------:|
-|     -O0      |     8106 |           3683 |        4007 |
-|     -O1      |     1095 |           1095 |     **442** |
-|     -O2      |     1098 |        **832** |         919 |
-|     -O3      |     1098 |            832 |         919 |
-|     -Os      |  **839** |           1096 |         919 |
+|     -O0      |     4526 |            981 |        1936 |
+|     -O1      |      720 |            705 |         321 |
+|     -O2      |      703 |            708 |         320 |
+|     -O3      |      468 |            708 |         321 |
+|     -Os      |      710 |            701 |         299 |
+
+Full testresults can be found [here](LsbTestResults.txt).
 
 ## Key Observations
 - At `-O1`, `GenericCrc` (Crc2) is the clear winner--more than 2x faster than
   the next best.
-
-- At `-Os`, `PlainCrc` (Crc0) wins due to compact loop and smaller
-  instruction footprint.
 
 - All variants exceed 100 MiB/s throughput under most settings.
 
@@ -59,6 +60,8 @@ for (std::size_t i = 0; i < (1<<20); ++i)
   to branchless, inlined structure.
 
 # Source Code
+
+The full source code is available [here](../src/tjg32.cpp).
 
 ## PlainCrc
 
@@ -74,19 +77,18 @@ counterparts.
 ```cpp
 template<std::unsigned_integral Uint, Uint Poly>
 struct PlainCrc {
-
   static constexpr Uint Update(Uint crc, std::byte in) {
     crc ^= std::to_integer<Uint>(in);
-    for (int i = 0; i < 8; ++i) {
-      bool lsb = !!(crc & Uint{1});
+    for (int i = 0; i != 8; ++i) {
+      auto lsb = static_cast<bool>(crc & Uint{1});
       crc >>= 1;
       if (lsb)
         crc ^= Poly;
     }
     return crc;
   } // Update
+}; // PlainCrc
 
-};
 ```
 
 ## TraditionalCrc
@@ -102,16 +104,14 @@ performance compared to unrolled variants at higher optimization levels.
 ```cpp
 template<std::unsigned_integral Uint, Uint Poly>
 struct TraditionalCrc {
-
   // Optimized to remove if-statement.
   static constexpr Uint Update(Uint crc, std::byte in) {
     crc ^= std::to_integer<Uint>(in);
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i != 8; ++i)
       crc = (crc >> 1) ^ (-(crc & Uint{1}) & Poly);
     return crc;
   }
-
-};
+}; // TraditionalCrc
 ```
 
 ## GenericCrc
@@ -157,7 +157,7 @@ public:
     crc = (crc >> 8) ^ IterateCrc(crc, std::make_index_sequence<8>{});
     return crc;
   }
-};
+}; // GenericCrc
 ```
 
 # Analysis
@@ -189,4 +189,3 @@ public:
 
 **Author**: Terry Golubiewski  
 **Generated with assistance from ChatGPT**
-==============================
