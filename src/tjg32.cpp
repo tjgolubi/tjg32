@@ -43,6 +43,9 @@ constexpr T Reflect(T x) noexcept {
   return static_cast<T>(Table[static_cast<std::uint8_t>(x)]);
 }
 
+constexpr std::byte Reflect(std::byte x) noexcept
+  { return std::byte{Reflect(std::to_integer<std::uint8_t>(x))}; }
+
 template<std::integral T>
 requires (sizeof(T) > 1)
 constexpr T Reflect(T in) noexcept {
@@ -54,12 +57,82 @@ constexpr T Reflect(T in) noexcept {
   return out;
 } // Reflect
 
+template<std::unsigned_integral Uint, Uint Poly>
+struct NaiveCrc {
+  static constexpr auto Name = "NaiveCrc";
+  using crc_type = Uint;
+  static constexpr auto Rpoly = Reflect(Poly);
+
+  static constexpr Uint Update(Uint crc, std::byte in) {
+    for (int i = 0; i != 8; ++i) {
+      auto lsb = static_cast<bool>(
+                        (std::byte{(std::uint8_t)crc} ^ in) & std::byte{0x01});
+      crc >>= 1;
+      if (lsb)
+        crc ^= Rpoly;
+      in >>= 1;
+    }
+    return crc;
+  } // Update
+
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
+    for (auto b: buf)
+      crc = Update(crc, b);
+    return crc;
+  }
+}; // NaiveCrc
 
 template<std::unsigned_integral Uint, Uint Poly>
-class GenericCrc {
-public:
-  static constexpr auto Name = "GenericCrc";
+struct PlainCrc {
+  static constexpr auto Name = "PlainCrc";
   using crc_type = Uint;
+  static constexpr auto Rpoly = Reflect(Poly);
+
+  static constexpr Uint Update(Uint crc, std::byte in) {
+    crc ^= std::to_integer<Uint>(in);
+    for (int i = 0; i != 8; ++i) {
+      auto lsb = static_cast<bool>(crc & Uint{1});
+      crc >>= 1;
+      if (lsb)
+        crc ^= Rpoly;
+    }
+    return crc;
+  } // Update
+
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
+    for (auto b: buf)
+      crc = Update(crc, b);
+    return crc;
+  }
+}; // PlainCrc
+
+template<std::unsigned_integral Uint, Uint Poly>
+struct TraditionalCrc {
+  static constexpr auto Name = "TraditionalCrc";
+  using crc_type = Uint;
+  static constexpr auto Rpoly = Reflect(Poly);
+
+  // Optimized to remove if-statement.
+  static constexpr Uint Update(Uint crc, std::byte in) {
+    crc ^= std::to_integer<Uint>(in);
+    for (int i = 0; i != 8; ++i)
+      crc = (crc >> 1) ^ (-(crc & Uint{1}) & Rpoly);
+    return crc;
+  }
+
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
+    for (auto b: buf)
+      crc = Update(crc, b);
+    return crc;
+  }
+}; // TraditionalCrc
+
+template<std::unsigned_integral Uint, Uint Poly>
+class GenericCrc1 {
+public:
+  static constexpr auto Name = "GenericCrc1";
+  using crc_type = Uint;
+  static constexpr auto Rpoly = Reflect(Poly);
 
 private:
   static constexpr auto Shift = 8 * sizeof(Uint) - 1;
@@ -69,14 +142,14 @@ private:
     if constexpr (N > 1)
       return Uint{0};
     else
-      return Poly >> (1 - N);
+      return Rpoly >> (1 - N);
   }
 
   template<std::size_t N>
   static constexpr Uint Iter(Uint crc) {
     using Int = std::make_signed_t<Uint>;
     return static_cast<Uint>( ((static_cast<Int>(crc) << (Shift - N)) >> Shift)
-                              & ((Poly >> (7 - N)) ^ Residual<N>()));
+                              & ((Rpoly >> (7 - N)) ^ Residual<N>()));
   }
 
   template<std::size_t... N>
@@ -95,26 +168,108 @@ public:
       crc = Update(crc, b);
     return crc;
   }
-}; // GenericCrc
+}; // GenericCrc1
+
+template<std::unsigned_integral Uint, Uint Poly>
+class GenericCrc2 {
+public:
+  static constexpr auto Name = "GenericCrc2";
+  using crc_type = Uint;
+  static constexpr auto Rpoly = Reflect(Poly);
+
+private:
+  template<std::size_t N>
+  static constexpr Uint Residual() {
+    if constexpr (N > 1)
+      return Uint{0};
+    else
+      return Rpoly >> (1 - N);
+  }
+
+  template<std::size_t N>
+  static constexpr Uint Iter(Uint crc) {
+    constexpr auto Mask = Uint{1};
+    return static_cast<Uint>( (-((crc >> N) & Mask))
+                              & ((Rpoly >> (7 - N)) ^ Residual<N>()));
+  }
+
+  template<std::size_t... N>
+  static constexpr Uint IterateCrc(Uint crc, std::index_sequence<N...>)
+    { return (Iter<N>(crc) ^ ...); }
+
+public:
+  static constexpr Uint Update(Uint crc, std::byte in) {
+    crc ^= std::to_integer<Uint>(in);
+    crc = (crc >> 8) ^ IterateCrc(crc, std::make_index_sequence<8>{});
+    return crc;
+  }
+
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
+    for (auto b: buf)
+      crc = Update(crc, b);
+    return crc;
+  }
+}; // GenericCrc2
+
+template<std::unsigned_integral Uint, Uint Poly>
+class MsbCrc {
+public:
+  static constexpr auto Name = "MsbCrc";
+  using crc_type = Uint;
+
+private:
+  template<std::size_t N>
+  static constexpr Uint Residual() {
+    if constexpr (N > 1)
+      return Uint{0};
+    else
+      return Poly << (1 - N);
+  }
+
+  template<std::size_t N>
+  static constexpr Uint Iter(Uint crc) {
+    using Int = std::make_signed_t<Uint>;
+    return static_cast<Uint>( (-(static_cast<Int>(crc << N) < 0))
+                              & ((Poly << (7 - N)) ^ Residual<N>()));
+  }
+
+  template<std::size_t... N>
+  static constexpr Uint IterateCrc(Uint crc, std::index_sequence<N...>)
+    { return (Iter<N>(crc) ^ ...); }
+
+public:
+  static constexpr Uint Update(Uint crc, std::byte in) {
+    crc ^= std::to_integer<Uint>(in) << (8 * (sizeof(Uint) - 1));
+    crc = (crc << 8) ^ IterateCrc(crc, std::make_index_sequence<8>{});
+    return crc;
+  }
+
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
+    for (auto b: buf)
+      crc = Update(crc, b);
+    return crc;
+  }
+}; // MsbCrc
 
 template<std::unsigned_integral Uint, Uint Poly>
 class HandCrc {
 public:
   static constexpr auto Name = "HandCrc";
   using crc_type = Uint;
+  static constexpr auto Rpoly = Reflect(Poly);
 
   static constexpr Uint Update(Uint crc, std::byte in) {
     using Int = std::make_signed_t<Uint>;
     crc ^= std::to_integer<Uint>(in);
     auto icrc = static_cast<Int>(crc);
-    auto c = (((icrc << 31) >> 31) & ((Poly >> 7) ^ (Poly >> 1)))
-           ^ (((icrc << 30) >> 31) & ((Poly >> 6) ^  Poly))
-           ^ (((icrc << 29) >> 31) &  (Poly >> 5))
-           ^ (((icrc << 28) >> 31) &  (Poly >> 4))
-           ^ (((icrc << 27) >> 31) &  (Poly >> 3))
-           ^ (((icrc << 26) >> 31) &  (Poly >> 2))
-           ^ (((icrc << 25) >> 31) &  (Poly >> 1))
-           ^ (((icrc << 24) >> 31) &  (Poly >> 0));
+    auto c = (((icrc << 31) >> 31) & ((Rpoly >> 7) ^ (Rpoly >> 1)))
+           ^ (((icrc << 30) >> 31) & ((Rpoly >> 6) ^ (Rpoly >> 0)))
+           ^ (((icrc << 29) >> 31) &  (Rpoly >> 5))
+           ^ (((icrc << 28) >> 31) &  (Rpoly >> 4))
+           ^ (((icrc << 27) >> 31) &  (Rpoly >> 3))
+           ^ (((icrc << 26) >> 31) &  (Rpoly >> 2))
+           ^ (((icrc << 25) >> 31) &  (Rpoly >> 1))
+           ^ (((icrc << 24) >> 31) &  (Rpoly >> 0));
     return (crc >> 8) ^ static_cast<Uint>(c);
   }
 
@@ -130,19 +285,19 @@ class MaskCrc {
 public:
   static constexpr auto Name = "MaskCrc";
   using crc_type = Uint;
+  static constexpr auto Rpoly = Reflect(Poly);
 
   static constexpr Uint Update(Uint crc, std::byte in) {
-    using Int = std::make_signed_t<Uint>;
     constexpr auto Mask = Uint{1};
     crc ^= std::to_integer<Uint>(in);
-    auto c = (-((crc >> 0) & Mask) & ((Poly >> 7) ^ (Poly >> 1)))
-           ^ (-((crc >> 1) & Mask) & ((Poly >> 6) ^  Poly))
-           ^ (-((crc >> 2) & Mask) &  (Poly >> 5))
-           ^ (-((crc >> 3) & Mask) &  (Poly >> 4))
-           ^ (-((crc >> 4) & Mask) &  (Poly >> 3))
-           ^ (-((crc >> 5) & Mask) &  (Poly >> 2))
-           ^ (-((crc >> 6) & Mask) &  (Poly >> 1))
-           ^ (-((crc >> 7) & Mask) &  (Poly >> 0));
+    auto c = (-((crc >> 0) & Mask) & ((Rpoly >> 7) ^ (Rpoly >> 1)))
+           ^ (-((crc >> 1) & Mask) & ((Rpoly >> 6) ^ (Rpoly >> 0)))
+           ^ (-((crc >> 2) & Mask) &  (Rpoly >> 5))
+           ^ (-((crc >> 3) & Mask) &  (Rpoly >> 4))
+           ^ (-((crc >> 4) & Mask) &  (Rpoly >> 3))
+           ^ (-((crc >> 5) & Mask) &  (Rpoly >> 2))
+           ^ (-((crc >> 6) & Mask) &  (Rpoly >> 1))
+           ^ (-((crc >> 7) & Mask) &  (Rpoly >> 0));
     return (crc >> 8) ^ static_cast<Uint>(c);
   }
 
@@ -152,75 +307,6 @@ public:
     return crc;
   }
 }; // MaskCrc
-
-template<std::unsigned_integral Uint, Uint Poly>
-struct TraditionalCrc {
-  static constexpr auto Name = "TraditionalCrc";
-  using crc_type = Uint;
-
-  // Optimized to remove if-statement.
-  static constexpr Uint Update(Uint crc, std::byte in) {
-    crc ^= std::to_integer<Uint>(in);
-    for (int i = 0; i != 8; ++i)
-      crc = (crc >> 1) ^ (-(crc & Uint{1}) & Poly);
-    return crc;
-  }
-
-  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
-    for (auto b: buf)
-      crc = Update(crc, b);
-    return crc;
-  }
-}; // TraditionalCrc
-
-template<std::unsigned_integral Uint, Uint Poly>
-struct PlainCrc {
-  static constexpr auto Name = "PlainCrc";
-  using crc_type = Uint;
-
-  static constexpr Uint Update(Uint crc, std::byte in) {
-    crc ^= std::to_integer<Uint>(in);
-    for (int i = 0; i != 8; ++i) {
-      auto lsb = static_cast<bool>(crc & Uint{1});
-      crc >>= 1;
-      if (lsb)
-        crc ^= Poly;
-    }
-    return crc;
-  } // Update
-
-  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
-    for (auto b: buf)
-      crc = Update(crc, b);
-    return crc;
-  }
-}; // PlainCrc
-
-template<std::unsigned_integral Uint, Uint Poly>
-struct DumbCrc {
-  static constexpr auto Name = "DumbCrc";
-  using crc_type = Uint;
-
-  static constexpr auto RPoly = Reflect(Poly);
-
-  static constexpr Uint Update(Uint crc, std::byte in) {
-    for (int i = 0; i != 8; ++i) {
-      auto lsb = static_cast<bool>(
-                        (std::byte{(std::uint8_t)crc} ^ in) & std::byte{0x01});
-      crc >>= 1;
-      if (lsb)
-        crc ^= Poly;
-      in >>= 1;
-    }
-    return crc;
-  } // Update
-
-  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
-    for (auto b: buf)
-      crc = Update(crc, b);
-    return crc;
-  }
-}; // DumbCrc
 
 struct TimeResult {
   std::uint32_t crc = std::uint32_t{0};
@@ -278,20 +364,24 @@ int main() {
               << std::endl;
   }
 
-  using Crc0 = PlainCrc      <Uint, ReflectPoly>;
-  using Crc1 = TraditionalCrc<Uint, ReflectPoly>;
-  using Crc2 = HandCrc       <Uint, ReflectPoly>;
-  using Crc3 = GenericCrc    <Uint, ReflectPoly>;
-  using Crc4 = MaskCrc       <Uint, ReflectPoly>;
-  using Crc5 = DumbCrc       <Uint, ReflectPoly>;
+  using Naive = NaiveCrc      <Uint, NormalPoly>;
+  using Plain = PlainCrc      <Uint, NormalPoly>;
+  using Trad  = TraditionalCrc<Uint, NormalPoly>;
+  using Hand  = HandCrc       <Uint, NormalPoly>;
+  using Mask  = MaskCrc       <Uint, NormalPoly>;
+  using Gen1  = GenericCrc1   <Uint, NormalPoly>;
+  using Gen2  = GenericCrc2   <Uint, NormalPoly>;
+  using Msb   = MsbCrc        <Uint, NormalPoly>;
 
-  using Crcs = meta::TypeList<Crc0, Crc1, Crc2, Crc3, Crc4, Crc5>;
+  using Crcs  = meta::TypeList<Naive, Plain, Trad, Hand, Mask, Gen1, Gen2>;
+  using RCrcs = meta::TypeList<Msb>;
 
   {
     using namespace std;
     auto buf = array{ '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+    using Crc =TraditionalCrc<Uint, NormalPoly>;
     auto crc = ~Uint{0};
-    crc = Crc1::Update(crc, as_bytes(span{buf}));
+    crc = Crc::Update(crc, as_bytes(span{buf}));
     crc = ~crc;
     auto save = SaveIo{};
     SetHex();
@@ -318,6 +408,16 @@ int main() {
     results.emplace_back(Crc::Name, result);
   });
 
+  // Get ready to do MSB-First Crc's
+  for (auto& b: data)
+    b = Reflect(b);
+
+  meta::ForEachType<RCrcs>([&]<typename Crc>() {
+    auto result = Test<Crc>(LoopCount, data);
+    result.crc = Reflect(result.crc); // For MSB-first only.
+    results.emplace_back(Crc::Name, result);
+  });
+
   {
     using namespace std;
     auto save = SaveIo{cout};
@@ -327,7 +427,8 @@ int main() {
       const auto& result = item.second;
       const auto crc = result.crc;
       cout << "\nCrc" << dec << i << "::Update = " << hex << setw(10) << crc
-                                           << ' ' << setw(10) << Reflect(crc);
+                                           << ' ' << setw(10) << Reflect(crc)
+                                           << ' ' << item.first;
     }
     cout << endl;
   }

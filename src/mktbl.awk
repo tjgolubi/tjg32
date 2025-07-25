@@ -26,7 +26,7 @@ END {
   for (num in table) {
     printf "| %-14s", names[num];
     for (opt in table[num])
-      printf " | %6s", table[num][opt];
+      printf " |%7s", table[num][opt];
     printf " |\n";
   }
 }
