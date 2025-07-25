@@ -5,7 +5,7 @@
 /^Crc[0-9]::Update time:/ {
   num = $1;
   dt = $3;
-  name = $4;
+  name = $7;
   names[num] = name;
   table[num][optimize] = dt;
 }

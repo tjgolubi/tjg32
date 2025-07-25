@@ -435,12 +435,15 @@ int main() {
 
   {
     using namespace std;
+    cout << setprecision(0) << fixed;
     for (int i = 0; i != std::ssize(results); ++i) {
       const auto& item = results[i];
       const auto& name = item.first;
       const auto& result = item.second;
-      cout << "\nCrc" << i << "::Update time: " << setw(6) << result.ms
-           << ' ' << name;
+      auto s = std::chrono::duration<double>(result.ms);
+      auto rate = LoopCount * data.size() / s.count() / (1024*1024);
+      cout << "\nCrc" << i << "::Update time: " << setw(6) << result.ms.count()
+           << " ms " << setw(4) << rate << " MiB/s " << name;
     }
     cout << endl;
   }

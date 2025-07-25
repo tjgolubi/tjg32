@@ -10,15 +10,12 @@ GSL:=$(APP)/GSL
 UNITS:=$(APP)/mp-units/src
 
 # Must use "=" instead of ":=" because $E will be defined below.
-LSB32_E=lsb32.$E
-MSB32_E=msb32.$E
-TARGET1=$(LSB32_E)
-TARGET2=$(MSB32_E)
-TARGETS=$(TARGET1) $(TARGET2)
+TJG32_E=tjg32.$E
+TARGET1=$(TJG32_E)
+TARGETS=$(TARGET1)
 
-SRC1 := lsb32.cpp
-SRC2 := msb32.cpp
-SOURCE := $(SRC1) $(SRC2)
+SRC1 := tjg32.cpp
+SOURCE := $(SRC1)
 
 SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
 INCLUDE:=$(PROJDIR)
@@ -38,7 +35,4 @@ include $(SWDEV)/build.mk
 all: $(TARGETS)
 
 $(TARGET1): $(OBJ1) $(LIBS)
-        $(LINK)
-
-$(TARGET2): $(OBJ2) $(LIBS)
         $(LINK)
