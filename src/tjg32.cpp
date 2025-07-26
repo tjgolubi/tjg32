@@ -18,13 +18,14 @@
 namespace detail {
 
 consteval std::uint8_t Reflect8(std::uint8_t in) {
-  auto out = std::uint8_t{0};
-  for (int i=0; i!=8; ++i) {
-    out = (out << 1) | (in & 1);
+  auto i = 8 - 1;
+  std::uint8_t out = (in & 1);
+  do {
     in >>= 1;
-  }
+    out = (out << 1) | (in & 1);
+  } while (--i);
   return out;
-}
+} // Reflect8
 
 consteval std::array<std::uint8_t, 256> GenerateReflectTable() {
   std::array<std::uint8_t, 256> table{};
@@ -49,11 +50,12 @@ constexpr std::byte Reflect(std::byte x) noexcept
 template<std::integral T>
 requires (sizeof(T) > 1)
 constexpr T Reflect(T in) noexcept {
-  auto out = T{0};
-  for (int i = 0; i != sizeof(T); ++i) {
-    out = (out << 8) | Reflect(static_cast<std::uint8_t>(in & 0xff));
+  auto size = sizeof(T)-1;
+  T out = Reflect(static_cast<std::uint8_t>(in & 0xff));
+  do {
     in >>= 8;
-  }
+    out = (out << 8) | Reflect(static_cast<std::uint8_t>(in & 0xff));
+  } while (--size);
   return out;
 } // Reflect
 
@@ -390,16 +392,29 @@ int main() {
     cout << endl;
   }
 
-  constexpr int LoopCount = 100;
-
-  constexpr std::size_t size = 1 << 20;  // 1 MiB
-  std::vector<std::byte> data;
-  data.reserve(size);
+  constexpr auto Seed = 12345;
+  std::mt19937 rng{Seed};
 
   // Fill data with pseudo-random bytes
-  std::mt19937 rng(12345);
-  for (int i = 0; i != size; ++i)
-    data.push_back(static_cast<std::byte>(rng() & 0xff));
+  std::vector<std::byte> data;
+  constexpr int LoopCount = 100;
+  {
+    rng.seed(Seed);
+    constexpr std::size_t Size = 1 << 20;  // 1 MiB
+    data.reserve(Size);
+    for (int i = 0; i != Size; ++i)
+      data.push_back(static_cast<std::byte>(rng() & 0xff));
+  }
+
+  std::cout << "Computing expected value: " << std::flush;
+
+  auto expected = Test<Trad>(LoopCount, data).crc;
+
+  {
+    auto save = SaveIo{};
+    SetHex();
+    std::cout << "Expected CRC is " << std::setw(10) << expected << std::endl;
+  }
 
   std::vector<std::pair<std::string_view, TimeResult>> results;
 
@@ -429,6 +444,8 @@ int main() {
       cout << "\nCrc" << dec << i << "::Update = " << hex << setw(10) << crc
                                            << ' ' << setw(10) << Reflect(crc)
                                            << ' ' << item.first;
+      if (crc != expected)
+        std::cout << "................ \bWRONG!";
     }
     cout << endl;
   }
