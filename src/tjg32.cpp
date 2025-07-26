@@ -254,6 +254,33 @@ public:
 }; // MsbCrc
 
 template<std::unsigned_integral Uint, Uint Poly>
+class HandMsbCrc {
+public:
+  static constexpr auto Name = "HandMsbCrc";
+  using crc_type = Uint;
+
+  static constexpr Uint Update(Uint crc, std::byte in) {
+    using Int = std::make_signed_t<Uint>;
+    crc ^= std::to_integer<Uint>(in) << (8 * (sizeof(Uint) - 1));
+    auto c = (-(static_cast<Int>(crc << 0) < 0) & ((Poly << 7) ^ (Poly << 1)))
+           ^ (-(static_cast<Int>(crc << 1) < 0) & ((Poly << 6) ^ (Poly << 0)))
+           ^ (-(static_cast<Int>(crc << 2) < 0) &  (Poly << 5))
+           ^ (-(static_cast<Int>(crc << 3) < 0) &  (Poly << 4))
+           ^ (-(static_cast<Int>(crc << 4) < 0) &  (Poly << 3))
+           ^ (-(static_cast<Int>(crc << 5) < 0) &  (Poly << 2))
+           ^ (-(static_cast<Int>(crc << 6) < 0) &  (Poly << 1))
+           ^ (-(static_cast<Int>(crc << 7) < 0) &  (Poly << 0));
+    return (crc << 8) ^ static_cast<Uint>(c);
+  }
+
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
+    for (auto b: buf)
+      crc = Update(crc, b);
+    return crc;
+  }
+}; // HandMsbCrc
+
+template<std::unsigned_integral Uint, Uint Poly>
 class HandCrc {
 public:
   static constexpr auto Name = "HandCrc";
@@ -369,14 +396,15 @@ int main() {
   using Naive = NaiveCrc      <Uint, NormalPoly>;
   using Plain = PlainCrc      <Uint, NormalPoly>;
   using Trad  = TraditionalCrc<Uint, NormalPoly>;
-  using Hand  = HandCrc       <Uint, NormalPoly>;
   using Mask  = MaskCrc       <Uint, NormalPoly>;
+  using Hand  = HandCrc       <Uint, NormalPoly>;
   using Gen1  = GenericCrc1   <Uint, NormalPoly>;
   using Gen2  = GenericCrc2   <Uint, NormalPoly>;
   using Msb   = MsbCrc        <Uint, NormalPoly>;
+  using HandMsb = HandMsbCrc  <Uint, NormalPoly>;
 
-  using Crcs  = meta::TypeList<Naive, Plain, Trad, Hand, Mask, Gen1, Gen2>;
-  using RCrcs = meta::TypeList<Msb>;
+  using Crcs  = meta::TypeList<Naive, Plain, Trad, Mask, Hand, Gen1, Gen2>;
+  using RCrcs = meta::TypeList<Msb, HandMsb>;
 
   {
     using namespace std;
