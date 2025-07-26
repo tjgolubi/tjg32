@@ -2,8 +2,11 @@
   optimize = $3;
 }
 
-/^Crc[0-9]::Update time:/ {
-  num = $1;
+/^Crc[0-9]+::Update time:/ {
+  if (match($1, /[0-9]+/))
+    num = substr($1, RSTART, RLENGTH);
+  else
+    num = $1;
   dt = $3;
   name = $7;
   names[num] = name;
@@ -11,7 +14,7 @@
 }
 
 END {
-  PROCINFO["sorted_in"] = "@ind_str_asc";
+  PROCINFO["sorted_in"] = "@ind_num_asc";
   for (num in table) {
     printf "| %-14s", "Algorithm";
     for (opt in table[num])
