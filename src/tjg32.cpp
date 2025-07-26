@@ -254,9 +254,9 @@ public:
 }; // MsbCrc
 
 template<std::unsigned_integral Uint, Uint Poly>
-class HandMsbCrc {
+class MaskMsbCrc {
 public:
-  static constexpr auto Name = "HandMsbCrc";
+  static constexpr auto Name = "MaskMsbCrc";
   using crc_type = Uint;
 
   static constexpr Uint Update(Uint crc, std::byte in) {
@@ -278,7 +278,7 @@ public:
       crc = Update(crc, b);
     return crc;
   }
-}; // HandMsbCrc
+}; // MaskMsbCrc
 
 template<std::unsigned_integral Uint, Uint Poly>
 class HandCrc {
@@ -317,16 +317,15 @@ public:
   static constexpr auto Rpoly = Reflect(Poly);
 
   static constexpr Uint Update(Uint crc, std::byte in) {
-    constexpr auto Mask = Uint{1};
     crc ^= std::to_integer<Uint>(in);
-    auto c = (-((crc >> 0) & Mask) & ((Rpoly >> 7) ^ (Rpoly >> 1)))
-           ^ (-((crc >> 1) & Mask) & ((Rpoly >> 6) ^ (Rpoly >> 0)))
-           ^ (-((crc >> 2) & Mask) &  (Rpoly >> 5))
-           ^ (-((crc >> 3) & Mask) &  (Rpoly >> 4))
-           ^ (-((crc >> 4) & Mask) &  (Rpoly >> 3))
-           ^ (-((crc >> 5) & Mask) &  (Rpoly >> 2))
-           ^ (-((crc >> 6) & Mask) &  (Rpoly >> 1))
-           ^ (-((crc >> 7) & Mask) &  (Rpoly >> 0));
+    auto c = (-((crc >> 0) & 1) & ((Rpoly >> 7) ^ (Rpoly >> 1)))
+           ^ (-((crc >> 1) & 1) & ((Rpoly >> 6) ^ (Rpoly >> 0)))
+           ^ (-((crc >> 2) & 1) &  (Rpoly >> 5))
+           ^ (-((crc >> 3) & 1) &  (Rpoly >> 4))
+           ^ (-((crc >> 4) & 1) &  (Rpoly >> 3))
+           ^ (-((crc >> 5) & 1) &  (Rpoly >> 2))
+           ^ (-((crc >> 6) & 1) &  (Rpoly >> 1))
+           ^ (-((crc >> 7) & 1) &  (Rpoly >> 0));
     return (crc >> 8) ^ static_cast<Uint>(c);
   }
 
@@ -401,10 +400,10 @@ int main() {
   using Gen1  = GenericCrc1   <Uint, NormalPoly>;
   using Gen2  = GenericCrc2   <Uint, NormalPoly>;
   using Msb   = MsbCrc        <Uint, NormalPoly>;
-  using HandMsb = HandMsbCrc  <Uint, NormalPoly>;
+  using MaskMsb = MaskMsbCrc  <Uint, NormalPoly>;
 
   using Crcs  = meta::TypeList<Naive, Plain, Trad, Mask, Hand, Gen1, Gen2>;
-  using RCrcs = meta::TypeList<Msb, HandMsb>;
+  using RCrcs = meta::TypeList<Msb, MaskMsb>;
 
   {
     using namespace std;
