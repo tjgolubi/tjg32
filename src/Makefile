@@ -12,13 +12,16 @@ UNITS:=$(APP)/mp-units/src
 # Must use "=" instead of ":=" because $E will be defined below.
 TJG32_E=tjg32.$E
 CRC_TEST_E=CrcTest.$E
+LOOKUP_E=Lookup.$E
 TARGET1=$(TJG32_E)
 TARGET2=$(CRC_TEST_E)
-TARGETS=$(TARGET1) $(TARGET2)
+TARGET3=$(LOOKUP_E)
+TARGETS=$(TARGET1) $(TARGET2) $(TARGET3)
 
 SRC1 := tjg32.cpp
 SRC2 := CrcTest.cpp
-SOURCE := $(SRC1) $(SRC2)
+SRC3 := Lookup.cpp
+SOURCE := $(SRC1) $(SRC2) $(SRC3)
 
 SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
 INCLUDE:=$(PROJDIR)
@@ -41,4 +44,7 @@ $(TARGET1): $(OBJ1) $(LIBS)
         $(LINK)
 
 $(TARGET2): $(OBJ2) $(LIBS)
+        $(LINK)
+
+$(TARGET3): $(OBJ3) $(LIBS)
         $(LINK)
