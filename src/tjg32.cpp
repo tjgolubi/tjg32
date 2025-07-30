@@ -108,17 +108,31 @@ struct PlainCrc {
   }
 }; // PlainCrc
 
-template<std::unsigned_integral Uint, Uint Poly>
-struct TraditionalCrc {
-  static constexpr auto Name = "TraditionalCrc";
-  using crc_type = Uint;
-  static constexpr auto Rpoly = Reflect(Poly);
+// CRC_MASK_WORD evaluates to either 0 or ~0, depending on the MSB of its
+// argument.  The first DEBUG implementation runs faster when compiled
+// with -O0 or -Og.  For all other optimization levels, the second wins.
+#ifndef DEBUG
+#define CRC_MASK_WORD(x) (-(Uint)((Int)(x) < Int{0}))
+#else
+#define CRC_MASK_WORD(x) ((Uint)((Int)(x) >> Shift))
+#endif
 
+template<std::unsigned_integral Uint, Uint Poly>
+struct TradLsbCrc {
+  static constexpr auto Name = "TradLsbCrc";
+  using crc_type = Uint;
+
+private:
+  static constexpr auto Rpoly = Reflect(Poly);
+  using Int = std::make_signed_t<Uint>;
+  [[maybe_unused]] static constexpr auto Shift = 8 * sizeof(Uint) - 1;
+
+public:
   // Optimized to remove if-statement.
   static constexpr Uint Update(Uint crc, std::byte in) {
     crc ^= std::to_integer<Uint>(in);
     for (int i = 0; i != 8; ++i)
-      crc = (crc >> 1) ^ (-(crc & Uint{1}) & Rpoly);
+      crc = (crc >> 1) ^ (CRC_MASK_WORD(crc << Shift) & Rpoly);
     return crc;
   }
 
@@ -127,7 +141,33 @@ struct TraditionalCrc {
       crc = Update(crc, b);
     return crc;
   }
-}; // TraditionalCrc
+}; // TradLsbCrc
+
+template<std::unsigned_integral Uint, Uint Poly>
+struct TradMsbCrc {
+  static constexpr auto Name = "TradMsbCrc";
+  using crc_type = Uint;
+
+private:
+  using Int = std::make_signed_t<Uint>;
+  [[maybe_unused]] static constexpr auto Shift = 8 * sizeof(Uint) - 1;
+
+public:
+  // Optimized to remove if-statement.
+  static constexpr Uint Update(Uint crc, std::byte in) {
+    crc ^= std::to_integer<Uint>(in) << (8 * (sizeof(Uint) - 1));
+    for (int i = 0; i != 8; ++i)
+      crc = (crc << 1) ^ (CRC_MASK_WORD(crc) & Poly);
+    return crc;
+  }
+
+  static constexpr Uint Update(Uint crc, std::span<const std::byte> buf) {
+    for (auto b: buf)
+      crc = Update(crc, b);
+    return crc;
+  }
+}; // TradMsbCrc
+
 
 template<std::unsigned_integral Uint, Uint Poly>
 class GenLsbCrc {
@@ -213,15 +253,6 @@ public:
   }
 }; // GenMsbCrc
 
-// CRC_MASK_WORD evaluates to either 0 or ~0, depending on the MSB of its
-// argument.  The first DEBUG implementation runs faster when compiled
-// with -O0 or -Og.  For all other optimization levels, the second wins.
-#ifndef DEBUG
-#define CRC_MASK_WORD(x) (-(Uint)((Int)(x) < Int{0}))
-#else
-#define CRC_MASK_WORD(x) ((Uint)((Int)(x) >> Shift))
-#endif
-
 template<std::unsigned_integral Uint, Uint Poly>
 class MsbCrc {
 public:
@@ -282,6 +313,8 @@ public:
   }
 }; // LsbCrc
 
+#undef CRC_MASK_WORD
+
 struct TimeResult {
   std::uint32_t crc = std::uint32_t{0};
   std::chrono::milliseconds ms  = std::chrono::milliseconds{0};
@@ -341,19 +374,20 @@ int main() {
 
   using Naive    = NaiveCrc      <Uint, NormalPoly>;
   using Plain    = PlainCrc      <Uint, NormalPoly>;
-  using Trad     = TraditionalCrc<Uint, NormalPoly>;
+  using TradLsb  = TradLsbCrc    <Uint, NormalPoly>;
+  using TradMsb  = TradMsbCrc    <Uint, NormalPoly>;
   using GenLsb   = GenLsbCrc     <Uint, NormalPoly>;
   using GenMsb   = GenMsbCrc     <Uint, NormalPoly>;
   using Lsb      = LsbCrc        <Uint, NormalPoly>;
   using Msb      = MsbCrc        <Uint, NormalPoly>;
 
-  using Crcs  = meta::TypeList<Trad, Lsb, GenLsb>;
-  using RCrcs = meta::TypeList<GenMsb, Msb>;
+  using Crcs  = meta::TypeList<TradLsb, Lsb, GenLsb>;
+  using RCrcs = meta::TypeList<GenMsb, Msb, TradMsb>;
 
   {
     using namespace std;
     auto buf = array{ '1', '2', '3', '4', '5', '6', '7', '8', '9' };
-    using Crc =TraditionalCrc<Uint, NormalPoly>;
+    using Crc =TradLsbCrc<Uint, NormalPoly>;
     auto crc = ~Uint{0};
     crc = Crc::Update(crc, as_bytes(span{buf}));
     crc = ~crc;
@@ -380,7 +414,7 @@ int main() {
 
   std::cout << "Computing expected value: " << std::flush;
 
-  auto expected = Test<Trad>(LoopCount, data).crc;
+  auto expected = Test<TradLsb>(LoopCount, data).crc;
 
   {
     auto save = SaveIo{};

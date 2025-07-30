@@ -262,15 +262,12 @@ struct Crc12Gsm : public CrcEngine<12, 0xd31, CrcDir::MsbFirst> {
   Crc12Gsm() : CrcEngine{0x000, 0xfff} { }
 };
 
-#if 0
 struct Crc12Umts : public CrcEngine<12, 0x80f, CrcDir::MsbFirst> {
   static constexpr CrcType Check = 0xdaf;
   static constexpr const char* Name = "CRC-12/UMTS";
   Crc12Umts() : CrcEngine{0x000, 0x000} { }
-  CrcType value() const
-    { return detail::reflect_bits(CrcEngine::value(), 12); }
+  CrcType value() const { return Reflect(CrcEngine::value()) >> Shift; }
 };
-#endif
 
 struct Crc13Bbc : public CrcEngine<13, 0x1cf5, CrcDir::MsbFirst> {
   static constexpr CrcType Check = 0x04fa;
@@ -732,7 +729,7 @@ using AllCrcAlgorithms = meta::TypeList<
   Crc12Cdma2000,
   Crc12Dect,
   Crc12Gsm,
-  // Crc12Umts,
+  Crc12Umts,
   Crc13Bbc,
   Crc14Darc,
   Crc14Gsm,

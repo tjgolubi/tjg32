@@ -57,7 +57,6 @@ enum class CrcDir { LsbFirst, MsbFirst };
 
 namespace detail {
 
-#if 0
 // CRC_MASK_WORD evaluates to either 0 or ~0, depending on the MSB of its
 // argument.  The first DEBUG implementation runs faster when compiled
 // with -O0 or -Og.  For all other optimization levels, the second wins.
@@ -67,6 +66,7 @@ namespace detail {
 #define CRC_MASK_WORD(x) ((Uint)((Int)(x) >> Shift))
 #endif
 
+#if 0
 template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir>
 requires (Dir == CrcDir::MsbFirst)
 constexpr Uint Update(Uint crc, std::byte in) {
@@ -104,59 +104,68 @@ constexpr Uint Update(Uint crc, std::byte in) {
 #endif
 
 template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir>
-requires (Dir == CrcDir::LsbFirst)
-constexpr Uint TradUpdate(Uint crc, std::byte in) {
-  static constexpr auto Rpoly = Reflect(Poly);
-  crc ^= std::to_integer<Uint>(in);
-  for (int i = 0; i != 8; ++i)
-    crc = (crc >> 1) ^ (-(crc & Uint{1}) & Rpoly);
-  return crc;
-} // TradUpdate LsbFirst
-
-template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir>
 requires (Dir == CrcDir::MsbFirst)
 constexpr Uint TradUpdate(Uint crc, std::byte in) {
   using Int = std::make_signed_t<Uint>;
+  [[maybe_unused]] constexpr auto Shift = 8 * sizeof(Uint) - 1;
   crc ^= std::to_integer<Uint>(in) << 8 * (sizeof(Uint)-1);
   for (int i = 0; i != 8; ++i)
-    crc = (crc >> 1) ^ (-(Uint)((Int) crc < 0) & Poly);
+    crc = (crc << 1) ^ (CRC_MASK_WORD(crc) & Poly);
   return crc;
 } // TradUpdate MsbFirst
 
+template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir>
+requires (Dir == CrcDir::LsbFirst)
+constexpr Uint TradUpdate(Uint crc, std::byte in) {
+  using Int = std::make_signed_t<Uint>;
+  static constexpr auto Rpoly = Reflect(Poly);
+  [[maybe_unused]] constexpr auto Shift = 8 * sizeof(Uint) - 1;
+  crc ^= std::to_integer<Uint>(in);
+  for (int i = 0; i != 8; ++i)
+    crc = (crc >> 1) ^ (CRC_MASK_WORD(crc<<Shift) & Rpoly);
+  return crc;
+} // TradUpdate LsbFirst
+
 } // detail
 
-template<int Bits, uint_t<Bits>::least Poly, CrcDir Dir>
+template<std::size_t Bits, uint_t<Bits>::least Poly, CrcDir Dir>
 class CrcEngine {
 public:
   using CrcType = uint_t<Bits>::least;
-  static constexpr int     bits = Bits;
+  static constexpr auto     bits = Bits;
   static constexpr CrcType poly = Poly;
   static constexpr CrcDir  dir  = Dir;
+
+protected:
+  static constexpr std::uint8_t Shift = 8 * sizeof(CrcType) - Bits;
 
 private:
   const CrcType _init;
   const CrcType _xor;
   CrcType _crc;
 
+  static constexpr CrcType Init(CrcType init) noexcept {
+    if constexpr (Dir == CrcDir::MsbFirst)
+      return static_cast<CrcType>(init << Shift);
+    else
+      return static_cast<CrcType>(Reflect(init) >> Shift);
+  } // Init
+
 public:
   constexpr void reset() noexcept { _crc = _init; }
 
   constexpr CrcType value() const noexcept {
-    return _crc ^ _xor;
-#if 0
-    if constexpr (Dir == CrcDir::LsbFirst) {
-      return Reflect(_crc) ^ _xor;
-    } else {
+    if constexpr (Dir == CrcDir::MsbFirst)
+      return (_crc >> Shift) ^ _xor;
+    else
       return _crc ^ _xor;
-    }
-#endif
   }
 
   constexpr CrcEngine(CrcType init_, CrcType xor_) noexcept
-    : _init{init_}, _xor{xor_}, _crc{init_} { }
+    : _init{Init(init_)} , _xor{xor_} , _crc{_init} { }
 
   constexpr void update(std::byte b) noexcept
-    { _crc = detail::TradUpdate<CrcType, Poly, Dir>(_crc, b); }
+    { _crc = detail::TradUpdate<CrcType, Poly<<Shift, Dir>(_crc, b); }
 
   constexpr void update(std::span<const std::byte> buf) noexcept {
     for (auto b: buf)
@@ -165,4 +174,3 @@ public:
 }; // CrcEngine
 
 } // tjg
-// =========================================================================

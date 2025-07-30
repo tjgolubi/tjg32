@@ -24,8 +24,6 @@ auto Value(U x) -> typename CoutType<U>::type
 
 template<class Crc>
 bool Test() {
-  if (Crc::bits != 32)
-    return true;
   using namespace std;
   cout << "Testing " << Crc::Name << endl;
   Crc crc;
