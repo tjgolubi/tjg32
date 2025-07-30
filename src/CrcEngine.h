@@ -66,57 +66,20 @@ namespace detail {
 #define CRC_MASK_WORD(x) ((Uint)((Int)(x) >> Shift))
 #endif
 
-#if 0
 template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir>
 requires (Dir == CrcDir::MsbFirst)
 constexpr Uint Update(Uint crc, std::byte in) {
-  using Int = std::make_signed_t<Uint>;
-  [[maybe_unused]] constexpr auto Shift = 8 * sizeof(Uint) - 1;
-  crc ^= std::to_integer<Uint>(in) << (8 * (sizeof(Uint) - 1));
-  auto c = (CRC_MASK_WORD(crc << 0) & ((Poly << 7) ^ (Poly << 1)))
-         ^ (CRC_MASK_WORD(crc << 1) & ((Poly << 6) ^ (Poly << 0)))
-         ^ (CRC_MASK_WORD(crc << 2) &  (Poly << 5))
-         ^ (CRC_MASK_WORD(crc << 3) &  (Poly << 4))
-         ^ (CRC_MASK_WORD(crc << 4) &  (Poly << 3))
-         ^ (CRC_MASK_WORD(crc << 5) &  (Poly << 2))
-         ^ (CRC_MASK_WORD(crc << 6) &  (Poly << 1))
-         ^ (CRC_MASK_WORD(crc << 7) &  (Poly << 0));
-  return (crc << 8) ^ static_cast<Uint>(c);
-} // Update MsbFirst
-
-template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir>
-requires (Dir == CrcDir::LsbFirst)
-constexpr Uint Update(Uint crc, std::byte in) {
-  using Int = std::make_signed_t<Uint>;
-  constexpr auto Shift = 8 * sizeof(Uint) - 1;
-  constexpr auto Rpoly = Reflect(Poly);
-  crc ^= std::to_integer<Uint>(in);
-  auto c = (CRC_MASK_WORD(crc << (Shift-0)) & ((Rpoly >> 7) ^ (Rpoly >> 1)))
-         ^ (CRC_MASK_WORD(crc << (Shift-1)) & ((Rpoly >> 6) ^ (Rpoly >> 0)))
-         ^ (CRC_MASK_WORD(crc << (Shift-2)) &  (Rpoly >> 5))
-         ^ (CRC_MASK_WORD(crc << (Shift-3)) &  (Rpoly >> 4))
-         ^ (CRC_MASK_WORD(crc << (Shift-4)) &  (Rpoly >> 3))
-         ^ (CRC_MASK_WORD(crc << (Shift-5)) &  (Rpoly >> 2))
-         ^ (CRC_MASK_WORD(crc << (Shift-6)) &  (Rpoly >> 1))
-         ^ (CRC_MASK_WORD(crc << (Shift-7)) &  (Rpoly >> 0));
-  return (crc >> 8) ^ static_cast<Uint>(c);
-} // Update LsbFirst
-#endif
-
-template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir>
-requires (Dir == CrcDir::MsbFirst)
-constexpr Uint TradUpdate(Uint crc, std::byte in) {
   using Int = std::make_signed_t<Uint>;
   [[maybe_unused]] constexpr auto Shift = 8 * sizeof(Uint) - 1;
   crc ^= std::to_integer<Uint>(in) << 8 * (sizeof(Uint)-1);
   for (int i = 0; i != 8; ++i)
     crc = (crc << 1) ^ (CRC_MASK_WORD(crc) & Poly);
   return crc;
-} // TradUpdate MsbFirst
+} // Update MsbFirst
 
 template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir>
 requires (Dir == CrcDir::LsbFirst)
-constexpr Uint TradUpdate(Uint crc, std::byte in) {
+constexpr Uint Update(Uint crc, std::byte in) {
   using Int = std::make_signed_t<Uint>;
   static constexpr auto Rpoly = Reflect(Poly);
   [[maybe_unused]] constexpr auto Shift = 8 * sizeof(Uint) - 1;
@@ -124,7 +87,7 @@ constexpr Uint TradUpdate(Uint crc, std::byte in) {
   for (int i = 0; i != 8; ++i)
     crc = (crc >> 1) ^ (CRC_MASK_WORD(crc<<Shift) & Rpoly);
   return crc;
-} // TradUpdate LsbFirst
+} // Update LsbFirst
 
 } // detail
 
@@ -165,7 +128,7 @@ public:
     : _init{Init(init_)} , _xor{xor_} , _crc{_init} { }
 
   constexpr void update(std::byte b) noexcept
-    { _crc = detail::TradUpdate<CrcType, Poly<<Shift, Dir>(_crc, b); }
+    { _crc = detail::Update<CrcType, Poly<<Shift, Dir>(_crc, b); }
 
   constexpr void update(std::span<const std::byte> buf) noexcept {
     for (auto b: buf)
