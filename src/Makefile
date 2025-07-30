@@ -11,11 +11,14 @@ UNITS:=$(APP)/mp-units/src
 
 # Must use "=" instead of ":=" because $E will be defined below.
 TJG32_E=tjg32.$E
+CRC_TEST_E=CrcTest.$E
 TARGET1=$(TJG32_E)
-TARGETS=$(TARGET1)
+TARGET2=$(CRC_TEST_E)
+TARGETS=$(TARGET1) $(TARGET2)
 
 SRC1 := tjg32.cpp
-SOURCE := $(SRC1)
+SRC2 := CrcTest.cpp
+SOURCE := $(SRC1) $(SRC2)
 
 SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
 INCLUDE:=$(PROJDIR)
@@ -35,4 +38,7 @@ include $(SWDEV)/build.mk
 all: $(TARGETS)
 
 $(TARGET1): $(OBJ1) $(LIBS)
+        $(LINK)
+
+$(TARGET2): $(OBJ2) $(LIBS)
         $(LINK)
