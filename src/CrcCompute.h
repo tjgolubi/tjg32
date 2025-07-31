@@ -4,6 +4,8 @@
 #include "CrcUpdate.h"
 #include "Integer.h"
 
+#include <gsl/gsl>
+
 #include <span>
 #include <concepts>
 #include <utility>

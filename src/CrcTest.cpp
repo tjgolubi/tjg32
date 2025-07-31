@@ -1,5 +1,6 @@
 #include "CrcEngine.h"
-#include "CrcClasses.hpp"
+#include "CrcKnown.h"
+#include "CrcTraits.h"
 
 #include <iostream>
 #include <iomanip>
@@ -22,9 +23,10 @@ template<std::unsigned_integral U>
 auto Value(U x) -> typename CoutType<U>::type
   { return static_cast<typename CoutType<U>::type>(x); }
 
-template<class Crc>
+template<class CrcTraits>
 bool Test() {
   using namespace std;
+  using Crc = tjg::CrcKnown<CrcTraits>;
   cout << "Testing " << Crc::Name << endl;
   Crc crc;
   crc.update(TestBuf);
@@ -45,8 +47,11 @@ bool Test() {
 } // Test
 
 int main() {
-  meta::ForEachType<tjg::AllCrcAlgorithms>([&]<typename Crc>() {
-    (void) Test<Crc>();
+  auto failCount = 0;
+  meta::ForEachType<tjg::KnownCrcs>([&]<typename CrcTraits>() {
+    if (!Test<CrcTraits>())
+      ++failCount;
   });
+  std::cout << failCount << " tests failed." << std::endl;
   return EXIT_SUCCESS;
 } // main

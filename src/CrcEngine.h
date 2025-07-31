@@ -1,3 +1,5 @@
+#pragma once
+
 #include "CrcCompute.h"
 #include "Integer.h"
 
@@ -46,7 +48,7 @@ public:
   constexpr void update(std::byte b) noexcept
     { _crc = CrcCompute<CrcType, Poly<<Shift, Dir, Slices>(_crc, b); }
 
-  constexpr void update(std::span<const std::byte> buf) noexcept {
+  constexpr void update(std::span<const std::byte> buf) noexcept
     { _crc = CrcCompute<CrcType, Poly<<Shift, Dir, Slices>(_crc, buf); }
 }; // CrcEngine
 
