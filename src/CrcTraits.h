@@ -7,7 +7,7 @@
 
 namespace tjg {
 
-constexpr int CrcDefaultSlices = 0;
+constexpr int CrcDefaultSlices = 1;
 
 struct Crc3Gsm {
   static constexpr const char* Name = "CRC-3/GSM";

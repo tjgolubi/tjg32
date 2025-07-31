@@ -42,6 +42,7 @@ constexpr Uint FoldAccum(Word word) {
 }
 
 template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir, std::size_t Bytes>
+requires (Bytes != 1)
 Uint CrcSlice(Uint crc, const std::byte* buf, std::size_t len) noexcept {
   using Word = uint_t<8 * Bytes>::least;
   Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
@@ -50,7 +51,7 @@ Uint CrcSlice(Uint crc, const std::byte* buf, std::size_t len) noexcept {
   const auto num = len / Bytes;
   const auto rem = len % Bytes;
   for (std::size_t i = 0; i < num; ++i)
-    crc ^= FoldAccum<Uint, Poly, Dir, Word, Bytes>(*ptr++);
+    crc = (crc >> 8) ^ FoldAccum<Uint, Poly, Dir, Word, Bytes>(*ptr++);
 
   if constexpr (Bytes > 1) {
     if (rem != 0) {
@@ -59,6 +60,26 @@ Uint CrcSlice(Uint crc, const std::byte* buf, std::size_t len) noexcept {
     }
   }
 
+  return crc;
+} // CrcSlice
+
+template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir, std::size_t Bytes>
+requires (Bytes == 1)
+Uint CrcSlice(Uint crc, const std::byte* buf, std::size_t len) noexcept {
+  using Word = uint_t<8 * Bytes>::least;
+  Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
+
+  using Table = CrcTable<Uint, Poly, Dir, 0>;
+  auto ptr = reinterpret_cast<const Word*>(buf);
+  const auto num = len;
+  if constexpr (Dir == CrcDir::LsbFirst) {
+    for (std::size_t i = 0; i != num; ++i)
+      crc = (crc >> 8) ^ Table::Get()[static_cast<Word>(crc ^ *ptr++)];
+  } else {
+    constexpr auto Shift = 8 * sizeof(Uint) - 8;
+    for (std::size_t i = 0; i != num; ++i)
+      crc = (crc << 8) ^ Table::Get()[static_cast<Word>((crc>>Shift) ^ *ptr++)];
+  }
   return crc;
 } // CrcSlice
 
