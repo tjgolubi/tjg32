@@ -1,6 +1,7 @@
 #include "CrcEngine.h"
 #include "CrcKnown.h"
 #include "CrcTraits.h"
+#include "SaveIo.h"
 
 #include <iostream>
 #include <iomanip>
@@ -26,6 +27,7 @@ auto Value(U x) -> typename CoutType<U>::type
 template<class CrcTraits>
 bool Test() {
   using namespace std;
+  auto saveIo = tjg::SaveIo{cout};
   using Crc = tjg::CrcKnown<CrcTraits>;
   cout << "Testing " << Crc::Name << endl;
   Crc crc;
@@ -33,25 +35,32 @@ bool Test() {
   if (crc.value() == Crc::Check)
     return true;
 
-  cout << hex << setfill('0');
+  tjg::SetHex(cout);
   int width = 2 * sizeof(typename Crc::CrcType);
   cout << "Returned value is not as expected."
-      << "\nBits         =   " << dec << Crc::bits << hex
-      << "\nPoly         = 0x" << setw(width) << Value(Crc::poly)
-      << "\nDir          =   " << ((Crc::dir == tjg::CrcDir::LsbFirst) ? "LSB" : "MSB")
-      << "\nCheck        = 0x" << setw(width) << Value(Crc::Check)
-      << "\nCrc          = 0x" << setw(width) << Value(crc.value())
-      << "\nReflect(Crc) = 0x" << setw(width) << Value(tjg::Reflect(crc.value()))
+    << "\nBits         =   " << dec << Crc::bits << hex
+    << "\nPoly         = 0x" << setw(width) << Value(Crc::poly)
+    << "\nDir          =   "
+    << ((Crc::dir == tjg::CrcDir::LsbFirst) ? "LSB" : "MSB")
+    << "\nCheck        = 0x" << setw(width) << Value(Crc::Check)
+    << "\nCrc          = 0x" << setw(width) << Value(crc.value())
+    << "\nReflect(Crc) = 0x" << setw(width) << Value(tjg::Reflect(crc.value()))
       << endl;
   return false;
 } // Test
 
 int main() {
-  auto failCount = 0;
-  meta::ForEachType<tjg::KnownCrcs>([&]<typename CrcTraits>() {
+  int failCount = 0;
+
+//  using Crcs = tjg::Known32BitCrcs;
+  using Crcs = tjg::KnownCrcs;
+
+  meta::ForEachType<Crcs>([&]<typename CrcTraits>() {
     if (!Test<CrcTraits>())
       ++failCount;
   });
-  std::cout << failCount << " tests failed." << std::endl;
-  return EXIT_SUCCESS;
+
+  std::cout << failCount << '/' << meta::LengthV<Crcs>
+            << " tests failed." << std::endl;
+  return (failCount == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 } // main

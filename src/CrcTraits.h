@@ -1706,6 +1706,27 @@ using KnownCrcs = meta::TypeList<
   Crc64Redis,
   Crc64We,
   Crc64Xz
->;
+>; // KnownCrcs
+
+template<class T>
+struct IsAbnormal
+  : std::bool_constant<T::Bits !=  8 && T::Bits != 16
+                    && T::Bits != 32 && T::Bits != 64> { };
+
+using KnownAbnormalCrcs = meta::FilterT<IsAbnormal, KnownCrcs>;
+
+template<std::size_t N>
+struct IsBitsEqual {
+  template<class T>
+  using apply = std::bool_constant<T::Bits == N>;
+};
+
+template<std::size_t N>
+using KnownNBitCrcs =
+                      meta::FilterT<IsBitsEqual<N>::template apply, KnownCrcs>;
+using Known8BitCrs   = KnownNBitCrcs< 8>;
+using Known16BitCrcs = KnownNBitCrcs<16>;
+using Known32BitCrcs = KnownNBitCrcs<32>;
+using Known64BitCrcs = KnownNBitCrcs<64>;
 
 } // tjg

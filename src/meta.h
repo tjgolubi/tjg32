@@ -147,4 +147,27 @@ constexpr void ForEachType(Fn&& fn) {
   ForEachTypeImpl(List{}, std::forward<Fn>(fn));
 }
 
+/// Filter a typelist using a predicate P<T>::value
+template<template<typename> typename P, typename List>
+struct Filter;
+
+template<template<typename> typename P>
+struct Filter<P, TypeList<>> {
+  using type = TypeList<>;
+};
+
+template<template<typename> typename P, typename Head, typename... Tail>
+struct Filter<P, TypeList<Head, Tail...>> {
+private:
+  using TailResult = typename Filter<P, TypeList<Tail...>>::type;
+public:
+  using type = std::conditional_t<
+    P<Head>::value,
+    typename Append<TailResult, Head>::type,
+    TailResult>;
+};
+
+template<template<typename> typename P, typename List>
+using FilterT = typename Filter<P, List>::type;
+
 } // meta

@@ -1,4 +1,5 @@
 #include "meta.h"
+#include "SaveIo.h"
 
 #include <chrono>
 #include <random>
@@ -342,22 +343,6 @@ TimeResult Test(int count, std::span<const std::byte> data) {
   return result;
 } // Test
 
-struct SaveIo {
-  std::ostream& os;
-  char fill;
-  std::ios_base::fmtflags flags;
-  explicit SaveIo(std::ostream& os_ = std::cout)
-    : os{os_}, fill{os_.fill()}, flags{os_.flags()} { }
-  ~SaveIo() {
-    (void) os.fill(fill);
-    (void) os.flags(flags);
-  }
-}; // SaveIo
-
-std::ostream& SetHex(std::ostream& os = std::cout) noexcept {
-  return os << std::hex << std::setfill('0') << std::internal << std::showbase;
-}
-
 int main() {
   using Uint = std::uint32_t;
   static constexpr auto NormalPoly  = Uint{0X04c11db7};
@@ -365,10 +350,10 @@ int main() {
 
   {
     using namespace std;
-    auto save = SaveIo{cout};
-    SetHex(cout);
-    cout << "Using NormalPoly="  << setw(10) << NormalPoly
-              << " ReflectPoly=" << setw(10) << ReflectPoly
+    auto save = tjg::SaveIo{cout};
+    tjg::SetHex(cout);
+    cout << "Using NormalPoly=0x"  << setw(8) << NormalPoly
+              << " ReflectPoly=0x" << setw(8) << ReflectPoly
               << endl;
   }
 
@@ -391,8 +376,8 @@ int main() {
     auto crc = ~Uint{0};
     crc = Crc::Update(crc, as_bytes(span{buf}));
     crc = ~crc;
-    auto save = SaveIo{};
-    SetHex();
+    auto save = tjg::SaveIo{};
+    tjg::SetHex(cout);
     cout << "Test Sequence CRC = " << crc;
     cout << ((crc == 0xcbf43926) ? " correct" : " WRONG");
     cout << endl;
@@ -417,9 +402,9 @@ int main() {
   auto expected = Test<TradLsb>(LoopCount, data).crc;
 
   {
-    auto save = SaveIo{};
-    SetHex();
-    std::cout << "Expected CRC is " << std::setw(10) << expected << std::endl;
+    auto save = tjg::SaveIo{};
+    tjg::SetHex(std::cout);
+    std::cout << "Expected CRC is 0x" << std::setw(8) << expected << std::endl;
   }
 
   std::vector<std::pair<std::string_view, TimeResult>> results;
@@ -441,17 +426,17 @@ int main() {
 
   {
     using namespace std;
-    auto save = SaveIo{cout};
-    SetHex(cout);
+    auto save = tjg::SaveIo{cout};
+    tjg::SetHex(cout);
     for (int i = 0; i != std::ssize(results); ++i) {
       const auto& item = results[i];
       const auto& result = item.second;
       const auto crc = result.crc;
-      cout << "\nCrc" << dec << i << "::Update = " << hex << setw(10) << crc
-                                           << ' ' << setw(10) << Reflect(crc)
+      cout << "\nCrc" << dec << i << "::Update = 0x" << setw(8) << crc
+                                           << " 0x" << setw(8) << Reflect(crc)
                                            << ' ' << item.first;
       if (crc != expected)
-        std::cout << "................ \bWRONG!";
+        cout << "................ \bWRONG!";
     }
     cout << endl;
   }
