@@ -38,8 +38,7 @@ jobs:
               update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 100
               echo "Using G++ 15"
             elif apt-get -y install g++-13; then
-              update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 90
-              echo "Using G++ 13 (fallback)"
+              [ -x /usr/bin/g++-13 ] && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 90
             else
               echo "Using default G++ (likely 12.x)"
             fi
