@@ -91,9 +91,9 @@ $(PATH_OBJ)/%.$O: %.c
 	@$(CC) $(CFLAGS) $(CDEFS) $(GCCINCL) -c -o$@ $<
 
 $(PATH_OBJ)/%.$O: %.cpp
-	@echo "Module: $<"
-	@$(RM) $@
-	@$(CXX) $(CXXFLAGS) $(CDEFS) $(GCCINCL) -c -o$@ $<
+	echo "Module: $<"
+	$(RM) $@
+	$(CXX) $(CXXFLAGS) $(CDEFS) $(GCCINCL) -c -o$@ $<
 
 $(PATH_OBJ)/%.$D: %.c
 	$(MKDEPSC)
@@ -115,9 +115,9 @@ endif
 	@$(CC) $(CFLAGS) $(CDEFS) $(GCCINCL) -c -o$@ $<
 
 %.$O: %.cpp
-	@echo "Module: $<"
-	@$(RM) $@
-	@$(CXX) $(CXXFLAGS) $(CDEFS) $(GCCINCL) -c -o$@ $<
+	echo "Module: $<"
+	$(RM) $@
+	$(CXX) $(CXXFLAGS) $(CDEFS) $(GCCINCL) -c -o$@ $<
 
 %.$D: %.c
 	$(MKDEPSC)
