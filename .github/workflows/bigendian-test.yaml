@@ -1,0 +1,34 @@
+name: Big-Endian CRC Test
+
+on:
+  push:
+    branches:
+      - Test
+  workflow_dispatch:
+
+jobs:
+  test-on-bigendian:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        arch: [ppc64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Run tests on ${{ matrix.arch }}
+        uses: addnab/docker-run-action@v3
+        with:
+          image: debian:bookworm-slim
+          options: --platform linux/${{ matrix.arch }}
+          run: |
+            apt-get update
+            apt-get install -y build-essential g++ make
+            make test

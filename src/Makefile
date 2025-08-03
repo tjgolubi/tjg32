@@ -2,7 +2,7 @@
 
 export PROJNAME:=tjg32
 export PROJDIR := $(abspath ..)
-# SWDEV := $(PROJDIR)/SwDev
+SWDEV := $(PROJDIR)/SwDev
 include $(SWDEV)/project.mk
 
 APP:=$(abspath $(HOME)/App)
@@ -36,15 +36,18 @@ include $(SWDEV)/build.mk
 
 .ONESHELL:
 
-.PHONY: all clean scour install uninstall
+.PHONY: all test clean scour install uninstall
 
-all: $(TARGETS)
+all: depend $(TARGETS)
 
 $(TARGET1): $(OBJ1) $(LIBS)
-        $(LINK)
+	$(LINK)
 
 $(TARGET2): $(OBJ2) $(LIBS)
-        $(LINK)
+	$(LINK)
 
 $(TARGET3): $(OBJ3) $(LIBS)
-        $(LINK)
+	$(LINK)
+
+test:   depend $(CRC_TEST_E)
+	./$(CRC_TEST_E)
