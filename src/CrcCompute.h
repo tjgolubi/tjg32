@@ -4,7 +4,11 @@
 #include "CrcUpdate.h"
 #include "Integer.h"
 
+#ifdef USE_GSL
 #include <gsl/gsl>
+#else
+#define Expects(x) do { } while(false)
+#endif
 
 #include <span>
 #include <concepts>
