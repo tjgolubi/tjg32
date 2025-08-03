@@ -1,9 +1,9 @@
 name: Big-Endian CRC Test
 
 on:
-# push:
-#   branches:
-#     - Test
+  push:
+    branches:
+      - Test
   workflow_dispatch:
 
 jobs:
