@@ -12,6 +12,10 @@
 #include <cstdint>
 #include <cstddef>
 
+#ifndef TJG_IS_LITTLE_ENDIAN
+#define TJG_IS_LITTLE_ENDIAN (std::endian::native == std::endian::little)
+#endif
+
 namespace tjg {
 
 namespace detail {
@@ -105,21 +109,29 @@ auto CrcSlice(std::unsigned_integral auto crc,
   for (std::size_t i = 0; i != len; ++i) {
     auto n = *ptr++;
     if constexpr (Dir == CrcDir::LsbFirst) {
-      if constexpr (std::endian::native == std::endian::little) {
+      if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Rsh<W>(crc)
             ^ Table1[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table0[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)];
       } else {
+        if constexpr (std::endian::native == std::endian::little)
+          n = std::byteswap(n);
         crc = Rsh<W>(crc)
             ^ Table1[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<1>(crc)];
       }
     } else {
-      if constexpr (std::endian::native == std::endian::little) {
+      if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Lsh<W>(crc)
             ^ Table1[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
             ^ Table0[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)];
       } else {
+        if constexpr (std::endian::native == std::endian::little)
+          n = std::byteswap(n);
         crc = Lsh<W>(crc)
             ^ Table1[(uint8_t)(Rsh<1>(n) ^ (uint8_t) Rsh<C-1>(crc))]
             ^ Table0[(uint8_t)(Rsh<0>(n) ^ (uint8_t) Rsh<C-2>(crc))];
@@ -148,13 +160,17 @@ auto CrcSlice(std::unsigned_integral auto crc,
   for (std::size_t i = 0; i != len; ++i) {
     auto n = *ptr++;
     if constexpr (Dir == CrcDir::LsbFirst) {
-      if constexpr (std::endian::native == std::endian::little) {
+      if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Rsh<W>(crc)
             ^ Table3[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table2[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)]
             ^ Table1[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<2>(crc)]
             ^ Table0[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<3>(crc)];
       } else {
+        if constexpr (std::endian::native == std::endian::little)
+          n = std::byteswap(n);
         crc = Rsh<W>(crc)
             ^ Table3[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table2[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<1>(crc)]
@@ -162,13 +178,17 @@ auto CrcSlice(std::unsigned_integral auto crc,
             ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<3>(crc)];
       }
     } else {
-      if constexpr (std::endian::native == std::endian::little) {
+      if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Lsh<W>(crc)
             ^ Table3[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
             ^ Table2[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)]
             ^ Table1[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<C-3>(crc)]
             ^ Table0[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<C-4>(crc)];
       } else {
+        if constexpr (std::endian::native == std::endian::little)
+          n = std::byteswap(n);
         crc = Lsh<W>(crc)
             ^ Table3[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<C-1>(crc)]
             ^ Table2[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<C-2>(crc)]
@@ -203,7 +223,9 @@ auto CrcSlice(std::unsigned_integral auto crc,
   for (std::size_t i = 0; i != len; ++i) {
     auto n = *ptr++;
     if constexpr (Dir == CrcDir::LsbFirst) {
-      if constexpr (std::endian::native == std::endian::little) {
+      if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Rsh<W>(crc)
             ^ Table7[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table6[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)]
@@ -214,6 +236,8 @@ auto CrcSlice(std::unsigned_integral auto crc,
             ^ Table1[(uint8_t) Rsh<6>(n) ^ (uint8_t) Rsh<6>(crc)]
             ^ Table0[(uint8_t) Rsh<7>(n) ^ (uint8_t) Rsh<7>(crc)];
       } else {
+        if constexpr (std::endian::native == std::endian::little)
+          n = std::byteswap(n);
         crc = Rsh<W>(crc)
             ^ Table7[(uint8_t) Rsh<7>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table6[(uint8_t) Rsh<6>(n) ^ (uint8_t) Rsh<1>(crc)]
@@ -225,7 +249,9 @@ auto CrcSlice(std::unsigned_integral auto crc,
             ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<7>(crc)];
       }
     } else {
-      if constexpr (std::endian::native == std::endian::little) {
+      if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Lsh<W>(crc)
             ^ Table7[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
             ^ Table6[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)]
@@ -236,6 +262,8 @@ auto CrcSlice(std::unsigned_integral auto crc,
             ^ Table1[(uint8_t) Rsh<6>(n) ^ (uint8_t) Rsh<C-7>(crc)]
             ^ Table0[(uint8_t) Rsh<7>(n) ^ (uint8_t) Rsh<C-8>(crc)];
       } else {
+        if constexpr (std::endian::native == std::endian::little)
+          n = std::byteswap(n);
         crc = Lsh<W>(crc)
             ^ Table7[(uint8_t) Rsh<7>(n) ^ (uint8_t) Rsh<C-1>(crc)]
             ^ Table6[(uint8_t) Rsh<6>(n) ^ (uint8_t) Rsh<C-2>(crc)]
