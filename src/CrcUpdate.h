@@ -19,26 +19,31 @@ enum class CrcDir { LsbFirst, MsbFirst };
 #define CRC_MASK_WORD(x) ((Uint)((Int)(x) >> Shift))
 #endif
 
-template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir>
+template<std::unsigned_integral auto Poly, CrcDir Dir>
 requires (Dir == CrcDir::MsbFirst)
-constexpr Uint CrcUpdate(Uint crc, std::byte in) {
+constexpr auto CrcUpdate(std::unsigned_integral auto crc, std::byte in) noexcept
+  -> decltype(crc)
+{
+  using Uint = decltype(crc);
   using Int = std::make_signed_t<Uint>;
-  [[maybe_unused]] constexpr auto Shift = 8 * sizeof(Uint) - 1;
   crc ^= std::to_integer<Uint>(in) << 8 * (sizeof(Uint)-1);
   for (int i = 0; i != 8; ++i)
     crc = (crc << 1) ^ (CRC_MASK_WORD(crc) & Poly);
   return crc;
 } // CrcUpdate MsbFirst
 
-template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir>
+// Poly must already be reflected.
+template<std::unsigned_integral auto Poly, CrcDir Dir>
 requires (Dir == CrcDir::LsbFirst)
-constexpr Uint CrcUpdate(Uint crc, std::byte in) {
+constexpr auto CrcUpdate(std::unsigned_integral auto crc, std::byte in) noexcept
+  -> decltype(crc)
+{
+  using Uint = decltype(crc);
   using Int = std::make_signed_t<Uint>;
-  static constexpr auto Rpoly = Reflect(Poly);
-  [[maybe_unused]] constexpr auto Shift = 8 * sizeof(Uint) - 1;
+  constexpr auto Shift = 8 * sizeof(Uint) - 1;
   crc ^= std::to_integer<Uint>(in);
   for (int i = 0; i != 8; ++i)
-    crc = (crc >> 1) ^ (CRC_MASK_WORD(crc<<Shift) & Rpoly);
+    crc = (crc >> 1) ^ (CRC_MASK_WORD(crc<<Shift) & Poly);
   return crc;
 } // CrcUpdate LsbFirst
 

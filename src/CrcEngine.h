@@ -9,17 +9,24 @@
 
 namespace tjg {
 
-template<std::size_t Bits, uint_t<Bits>::least Poly, CrcDir Dir, int Slices=-1>
+template<std::size_t Bits, uint_t<Bits>::least Poly, CrcDir Dir,
+         int Slices = -1>
+requires (Bits >= 3 && Bits <= 64)
 class CrcEngine {
 public:
   using CrcType = uint_t<Bits>::least;
-  static constexpr auto    bits = Bits;
-  static constexpr CrcType poly = Poly;
-  static constexpr CrcDir  dir  = Dir;
+  static constexpr auto   bits = Bits;
+  static constexpr auto   poly = Poly;
+  static constexpr CrcDir dir  = Dir;
 
 protected:
-  static constexpr std::uint8_t Shift = 8 * sizeof(CrcType) - Bits;
+  static constexpr auto CrcBits = 8 * sizeof(CrcType);
+  static constexpr std::uint8_t Shift = CrcBits - Bits;
 
+private:
+  static constexpr CrcType FastPoly = (Dir == CrcDir::MsbFirst)
+                                    ? (Poly << Shift)
+                                    : (Reflect(Poly) >> Shift);
 private:
   const CrcType _init;
   const CrcType _xor;
@@ -46,10 +53,10 @@ public:
     : _init{Init(init_)} , _xor{xor_} , _crc{_init} { }
 
   constexpr void update(std::byte b) noexcept
-    { _crc = CrcCompute<CrcType, Poly<<Shift, Dir, Slices>(_crc, b); }
+    { _crc = CrcCompute<FastPoly, Dir, Slices>(_crc, b); }
 
   constexpr void update(std::span<const std::byte> buf) noexcept
-    { _crc = CrcCompute<CrcType, Poly<<Shift, Dir, Slices>(_crc, buf); }
+    { _crc = CrcCompute<FastPoly, Dir, Slices>(_crc, buf); }
 }; // CrcEngine
 
 } // tjg

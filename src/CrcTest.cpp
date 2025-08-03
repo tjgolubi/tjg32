@@ -29,15 +29,17 @@ bool Test() {
   using namespace std;
   auto saveIo = tjg::SaveIo{cout};
   using Crc = tjg::CrcKnown<CrcTraits>;
-  cout << "Testing " << Crc::Name << endl;
+  cout << "Testing " << Crc::Name;
   Crc crc;
   crc.update(TestBuf);
-  if (crc.value() == Crc::Check)
+  if (crc.value() == Crc::Check) {
+    cout << " PASSED" << endl;
     return true;
+  }
 
   tjg::SetHex(cout);
   int width = 2 * sizeof(typename Crc::CrcType);
-  cout << "Returned value is not as expected."
+  cout << "\nReturned value is not as expected."
     << "\nBits         =   " << dec << Crc::bits << hex
     << "\nPoly         = 0x" << setw(width) << Value(Crc::poly)
     << "\nDir          =   "

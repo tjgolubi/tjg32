@@ -13,33 +13,92 @@
 
 namespace tjg {
 
-// Forward declaration for primary template
+
+template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir, std::size_t Slice>
+struct Generator {
+  using Table = std::array<Uint, 256>;
+  static consteval Table Generate() noexcept;
+}; //Generator
+
 template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir, std::size_t Slice>
 class CrcTable : public std::array<Uint, 256> {
 private:
-  consteval std::array<Uint, 256> Generate() noexcept {
-    std::array<Uint, 256> table{};
-    if constexpr (Slice == 0) {
-      for (std::size_t i = 0; i < 256; ++i) {
-        table[i] =
-                CrcUpdate<Uint, Poly, Dir>(Uint{0}, static_cast<std::byte>(i));
-      }
-    }
-    else {
-      for (int i = 0; i < 256; ++i) {
-        auto crc = CrcTable<Uint, Poly, Dir, Slice-1>::Get()[i];
-        table[i] = CrcUpdate<Uint, Poly, Dir>(crc, std::byte{0});
-      }
+  using Table = std::array<Uint, 256>;
+
+#if 0
+  static consteval Table Generate() noexcept
+  requires (Slice == 0)
+  {
+    auto table = Table{};
+    using Int = std::make_signed_t<Uint>;
+    table[0] = Uint{0};
+    auto crc = table[0x80] = Poly;
+    for (unsigned step = 0x40; step != 0; step >>= 1) {
+      if constexpr (Dir == CrcDir::LsbFirst)
+        crc = (crc >> 1) ^ (-(crc & 1) & Poly);
+      else
+        crc = (crc << 1) ^ (-Uint((Int)crc < 0) & Poly);
+      table[step] = crc;
+      for (unsigned i = 3 * step; i < 256; i += step << 1)
+        table[i] = crc ^ table[i - step];
     }
     return table;
-  } // Generate
+  }; // Generate
+#endif
 
-  constexpr CrcTable() : std::array<Uint, 256>{Generate()} {}
+  static consteval Table Generate() noexcept
+  requires (Slice == 0 && Dir == CrcDir::MsbFirst)
+  {
+    auto table = Table{};
+    using Int = std::make_signed_t<Uint>;
+    static constexpr auto Shift = 8 * sizeof(Uint) - 1;
+    Uint crc = Uint{1} << Shift;
+    table[0] = Uint{0};
+    for (unsigned i = 0x01; i != 0x100; i <<= 1) {
+      crc = (crc << 1) ^ (((crc >> Shift) & 1) ? Poly : 0);
+      for (unsigned j = 0; j != i; ++j)
+        table[i+j] = crc ^ table[j];
+    }
+    return table;
+  }; // Generate
+
+  static consteval Table Generate() noexcept
+  requires (Slice == 0 && Dir == CrcDir::LsbFirst)
+  {
+    auto table = Table{};
+    Uint crc = Uint{1};
+    table[0] = Uint{0};
+    for (unsigned i = 0x80; i != 0x00; i >>= 1) {
+      crc = (crc >> 1) ^ ((crc & 1) ? Poly : 0);
+      for (unsigned j = 0; j < 256; j += 2 * i)
+        table[i+j] = crc ^ table[j];
+    }
+    return table;
+  }; // Generate
+
+  static consteval Table Generate() noexcept
+  requires (Slice > 0 && Slice <= 8)
+  {
+    auto table = Table{};
+    auto& Tbl0=CrcTable<Uint, Poly, Dir, 0>::Get();
+    auto& Prev=CrcTable<Uint, Poly, Dir, Slice-1>::Get();
+    static constexpr auto Shift = 8 * sizeof(Uint) - 8;
+    for (int i = 0; i != 256; ++i) {
+      auto crc = Prev[i];
+      if (Dir == CrcDir::LsbFirst)
+        table[i] = (crc >> 8) ^ Tbl0[(std::uint8_t) crc];
+      else
+        table[i] = (crc << 8) ^ Tbl0[crc >> Shift];
+    }
+    return table;
+  }; // Generate
+
+  constexpr CrcTable() : Table{Generate()} { }
 
 public:
   static constexpr const CrcTable& Get() noexcept {
-    static constexpr auto Table = CrcTable{};
-    return Table;
+    static constexpr auto TheTable = CrcTable{};
+    return TheTable;
   }
 }; // CrcTable
 
