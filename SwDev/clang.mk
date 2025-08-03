@@ -15,7 +15,7 @@ CFLAGS  += -pipe    # compiler uses pipes between stages
 #CFLAGS += -pthread # for multi-threaded apps
 #CFLAGS += -fPIC    # for libraries (if they might be shared)
 #CFLAGS += -march=native
-CFLAGS += -march=x86-64-v2 -mtune=native
+#CFLAGS += -march=x86-64-v2 -mtune=native
 CFLAGS += -Wall -Wno-strict-aliasing
 CFLAGS += -Werror
 #CFLAGS += -Wno-c++0x-compat
