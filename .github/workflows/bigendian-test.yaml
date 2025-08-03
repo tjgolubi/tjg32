@@ -29,20 +29,8 @@ jobs:
           image: debian:bookworm-slim
           options: --platform linux/${{ matrix.arch }} -v ${{ github.workspace }}:/workspace
           run: |
-            set -e
-            echo "Attempting to install G++ 15..."
-            echo "deb http://deb.debian.org/debian experimental main" >> /etc/apt/sources.list
             apt-get update
-
-            if apt-get -y -t experimental install g++-15; then
-              update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 100
-              echo "Using G++ 15"
-            elif apt-get -y install g++-13; then
-              [ -x /usr/bin/g++-13 ] && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 90
-            else
-              echo "Using default G++ (likely 12.x)"
-            fi
-
+            apt-get -y install g++
             g++ --version
             cd /workspace
             make test
