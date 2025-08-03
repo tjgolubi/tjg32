@@ -110,6 +110,8 @@ auto CrcSlice(std::unsigned_integral auto crc,
     auto n = *ptr++;
     if constexpr (Dir == CrcDir::LsbFirst) {
       if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Rsh<W>(crc)
             ^ Table1[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table0[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)];
@@ -157,6 +159,8 @@ auto CrcSlice(std::unsigned_integral auto crc,
     auto n = *ptr++;
     if constexpr (Dir == CrcDir::LsbFirst) {
       if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Rsh<W>(crc)
             ^ Table3[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table2[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)]
@@ -173,6 +177,8 @@ auto CrcSlice(std::unsigned_integral auto crc,
       }
     } else {
       if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Lsh<W>(crc)
             ^ Table3[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
             ^ Table2[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)]
@@ -216,6 +222,8 @@ auto CrcSlice(std::unsigned_integral auto crc,
     auto n = *ptr++;
     if constexpr (Dir == CrcDir::LsbFirst) {
       if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Rsh<W>(crc)
             ^ Table7[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table6[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)]
@@ -240,6 +248,8 @@ auto CrcSlice(std::unsigned_integral auto crc,
       }
     } else {
       if constexpr (TJG_IS_LITTLE_ENDIAN) {
+        if constexpr (std::endian::native == std::endian::big)
+          n = std::byteswap(n);
         crc = Lsh<W>(crc)
             ^ Table7[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
             ^ Table6[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)]
