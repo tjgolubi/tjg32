@@ -29,10 +29,21 @@ jobs:
           image: debian:bookworm-slim
           options: --platform linux/${{ matrix.arch }} -v ${{ github.workspace }}:/workspace
           run: |
+            set -e
+            echo "Attempting to install G++ 15..."
+            echo "deb http://deb.debian.org/debian experimental main" >> /etc/apt/sources.list
             apt-get update
-            apt-get install -y build-essential g++ make
-            cd /workspace
-            echo "WORKING DIR: $(pwd)"
-            cat Makefile || echo "No Makefile"
-            make test
 
+            if apt-get -y -t experimental install g++-15; then
+              update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 100
+              echo "Using G++ 15"
+            elif apt-get -y install g++-13; then
+              update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 90
+              echo "Using G++ 13 (fallback)"
+            else
+              echo "Using default G++ (likely 12.x)"
+            fi
+
+            g++ --version
+            cd /workspace
+            make test
