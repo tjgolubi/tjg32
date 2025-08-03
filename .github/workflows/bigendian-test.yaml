@@ -27,19 +27,12 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: debian:bookworm-slim
-          options: --platform linux/${{ matrix.arch }}
+          options: --platform linux/${{ matrix.arch }} -v ${{ github.workspace }}:/workspace
           run: |
             apt-get update
             apt-get install -y build-essential g++ make
-            if test -d /github/workspace/tjg32
-            then
-              cd /github/workspace/tjg32
-              echo "HOME: $HOME"
-              echo "WORKING DIR: $(pwd)"
-              echo "Makefile contents:"
-              cat Makefile || echo "No Makefile"
-              ls -R
-              make test
-            else
-              ls -R /github/workspace
-            fi
+            cd /workspace
+            echo "WORKING DIR: $(pwd)"
+            cat Makefile || echo "No Makefile"
+            make test
+
