@@ -4,11 +4,7 @@
 #include "CrcUpdate.h"
 #include "Integer.h"
 
-#ifdef USE_GSL
 #include <gsl/gsl>
-#else
-#define Expects(x) do { } while(false)
-#endif
 
 #include <span>
 #include <concepts>
@@ -108,8 +104,8 @@ auto CrcSlice(std::unsigned_integral auto crc,
   auto ptr = buf;
   for (std::size_t i = 0; i != len; ++i) {
     auto n = *ptr++;
-    if (Dir == CrcDir::LsbFirst) {
-      if (std::endian::native == std::endian::little) {
+    if constexpr (Dir == CrcDir::LsbFirst) {
+      if constexpr (std::endian::native == std::endian::little) {
         crc = Rsh<W>(crc)
             ^ Table1[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table0[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)];
@@ -119,7 +115,7 @@ auto CrcSlice(std::unsigned_integral auto crc,
             ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<1>(crc)];
       }
     } else {
-      if (std::endian::native == std::endian::little) {
+      if constexpr (std::endian::native == std::endian::little) {
         crc = Lsh<W>(crc)
             ^ Table1[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
             ^ Table0[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)];
@@ -151,8 +147,8 @@ auto CrcSlice(std::unsigned_integral auto crc,
   auto ptr = buf;
   for (std::size_t i = 0; i != len; ++i) {
     auto n = *ptr++;
-    if (Dir == CrcDir::LsbFirst) {
-      if (std::endian::native == std::endian::little) {
+    if constexpr (Dir == CrcDir::LsbFirst) {
+      if constexpr (std::endian::native == std::endian::little) {
         crc = Rsh<W>(crc)
             ^ Table3[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table2[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)]
@@ -166,7 +162,7 @@ auto CrcSlice(std::unsigned_integral auto crc,
             ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<3>(crc)];
       }
     } else {
-      if (std::endian::native == std::endian::little) {
+      if constexpr (std::endian::native == std::endian::little) {
         crc = Lsh<W>(crc)
             ^ Table3[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
             ^ Table2[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)]
@@ -206,8 +202,8 @@ auto CrcSlice(std::unsigned_integral auto crc,
   auto ptr = buf;
   for (std::size_t i = 0; i != len; ++i) {
     auto n = *ptr++;
-    if (Dir == CrcDir::LsbFirst) {
-      if (std::endian::native == std::endian::little) {
+    if constexpr (Dir == CrcDir::LsbFirst) {
+      if constexpr (std::endian::native == std::endian::little) {
         crc = Rsh<W>(crc)
             ^ Table7[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
             ^ Table6[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)]
@@ -229,7 +225,7 @@ auto CrcSlice(std::unsigned_integral auto crc,
             ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<7>(crc)];
       }
     } else {
-      if (std::endian::native == std::endian::little) {
+      if constexpr (std::endian::native == std::endian::little) {
         crc = Lsh<W>(crc)
             ^ Table7[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
             ^ Table6[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)]

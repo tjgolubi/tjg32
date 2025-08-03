@@ -30,7 +30,7 @@ jobs:
           options: --platform linux/${{ matrix.arch }} -v ${{ github.workspace }}:/workspace
           run: |
             apt-get update
-            apt-get -y install g++
+            apt-get install -y build-essential g++ make
             g++ --version
             cd /workspace
             make test
