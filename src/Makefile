@@ -5,9 +5,8 @@ export PROJDIR := $(abspath ..)
 SWDEV := $(PROJDIR)/SwDev
 include $(SWDEV)/project.mk
 
-APP:=$(abspath $(HOME)/App)
-GSL:=$(APP)/GSL
-UNITS:=$(APP)/mp-units/src
+EXT:=$(abspath $(PROJDIR)/ext)
+GSL:=$(EXT)/GSL
 
 # Must use "=" instead of ":=" because $E will be defined below.
 TJG32_E=tjg32.$E
@@ -23,7 +22,7 @@ SRC2 := CrcTest.cpp
 SRC3 := Lookup.cpp
 SOURCE := $(SRC1) $(SRC2) $(SRC3)
 
-SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
+SYSINCL:=$(addsuffix /include, $(GSL))
 INCLUDE:=$(PROJDIR)
 
 # Must use "=" because LIBS will be changed below.
