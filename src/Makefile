@@ -13,15 +13,18 @@ UNITS:=$(APP)/mp-units/src
 TJG32_E=tjg32.$E
 CRC_TEST_E=CrcTest.$E
 LOOKUP_E=Lookup.$E
+CRC_TIME_E=CrcTime.$E
 TARGET1=$(TJG32_E)
 TARGET2=$(CRC_TEST_E)
 TARGET3=$(LOOKUP_E)
-TARGETS=$(TARGET1) $(TARGET2) $(TARGET3)
+TARGET4=$(CRC_TIME_E)
+TARGETS=$(TARGET1) $(TARGET2) $(TARGET3) $(TARGET4)
 
-SRC1 := tjg32.cpp
-SRC2 := CrcTest.cpp
-SRC3 := Lookup.cpp
-SOURCE := $(SRC1) $(SRC2) $(SRC3)
+SRC1:=tjg32.cpp
+SRC2:=CrcTest.cpp
+SRC3:=Lookup.cpp
+SRC4:=CrcTime.cpp
+SOURCE:=$(SRC1) $(SRC2) $(SRC3) $(SRC4)
 
 SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
 INCLUDE:=$(PROJDIR)
@@ -38,7 +41,7 @@ include $(SWDEV)/build.mk
 
 .PHONY: all clean scour install uninstall
 
-all: $(TARGETS)
+all: depend $(TARGETS)
 
 $(TARGET1): $(OBJ1) $(LIBS)
         $(LINK)
@@ -47,4 +50,7 @@ $(TARGET2): $(OBJ2) $(LIBS)
         $(LINK)
 
 $(TARGET3): $(OBJ3) $(LIBS)
+        $(LINK)
+
+$(TARGET4): $(OBJ4) $(LIBS)
         $(LINK)

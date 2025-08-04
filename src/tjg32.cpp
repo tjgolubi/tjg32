@@ -1,3 +1,4 @@
+#include "Reflect.h"
 #include "meta.h"
 #include "SaveIo.h"
 
@@ -16,55 +17,11 @@
 #include <iostream>
 #include <iomanip>
 
-namespace detail {
-
-consteval std::uint8_t Reflect8(std::uint8_t in) {
-  auto i = 8 - 1;
-  std::uint8_t out = (in & 1);
-  do {
-    in >>= 1;
-    out = (out << 1) | (in & 1);
-  } while (--i);
-  return out;
-} // Reflect8
-
-consteval std::array<std::uint8_t, 256> GenerateReflectTable() {
-  std::array<std::uint8_t, 256> table{};
-  for (unsigned i = 0; i != 256; ++i)
-    table[i] = Reflect8(static_cast<std::uint8_t>(i));
-  return table;
-}
-
-} // detail
-
-template<std::integral T>
-requires (sizeof(T) == 1)
-constexpr T Reflect(T x) noexcept {
-  static constexpr std::array<std::uint8_t, 256> Table
-                                              = detail::GenerateReflectTable();
-  return static_cast<T>(Table[static_cast<std::uint8_t>(x)]);
-}
-
-constexpr std::byte Reflect(std::byte x) noexcept
-  { return std::byte{Reflect(std::to_integer<std::uint8_t>(x))}; }
-
-template<std::integral T>
-requires (sizeof(T) > 1)
-constexpr T Reflect(T in) noexcept {
-  auto size = sizeof(T)-1;
-  T out = Reflect(static_cast<std::uint8_t>(in & 0xff));
-  do {
-    in >>= 8;
-    out = (out << 8) | Reflect(static_cast<std::uint8_t>(in & 0xff));
-  } while (--size);
-  return out;
-} // Reflect
-
 template<std::unsigned_integral Uint, Uint Poly>
 struct NaiveCrc {
   static constexpr auto Name = "NaiveCrc";
   using crc_type = Uint;
-  static constexpr auto Rpoly = Reflect(Poly);
+  static constexpr auto Rpoly = tjg::Reflect(Poly);
 
   static constexpr Uint Update(Uint crc, std::byte in) {
     for (int i = 0; i != 8; ++i) {
@@ -89,7 +46,7 @@ template<std::unsigned_integral Uint, Uint Poly>
 struct PlainCrc {
   static constexpr auto Name = "PlainCrc";
   using crc_type = Uint;
-  static constexpr auto Rpoly = Reflect(Poly);
+  static constexpr auto Rpoly = tjg::Reflect(Poly);
 
   static constexpr Uint Update(Uint crc, std::byte in) {
     crc ^= std::to_integer<Uint>(in);
@@ -124,7 +81,7 @@ struct TradLsbCrc {
   using crc_type = Uint;
 
 private:
-  static constexpr auto Rpoly = Reflect(Poly);
+  static constexpr auto Rpoly = tjg::Reflect(Poly);
   using Int = std::make_signed_t<Uint>;
   [[maybe_unused]] static constexpr auto Shift = 8 * sizeof(Uint) - 1;
 
@@ -177,7 +134,7 @@ public:
   using crc_type = Uint;
 
 private:
-  static constexpr auto Rpoly = Reflect(Poly);
+  static constexpr auto Rpoly = tjg::Reflect(Poly);
 
   template<std::size_t N>
   static constexpr Uint Residual() {
@@ -289,7 +246,7 @@ public:
   using crc_type = Uint;
 
 private:
-  static constexpr auto Rpoly = Reflect(Poly);
+  static constexpr auto Rpoly = tjg::Reflect(Poly);
 
 public:
   static constexpr Uint Update(Uint crc, std::byte in) {
@@ -346,7 +303,7 @@ TimeResult Test(int count, std::span<const std::byte> data) {
 int main() {
   using Uint = std::uint32_t;
   static constexpr auto NormalPoly  = Uint{0X04c11db7};
-  static constexpr auto ReflectPoly = Reflect(NormalPoly);
+  static constexpr auto ReflectPoly = tjg::Reflect(NormalPoly);
 
   {
     using namespace std;
@@ -416,11 +373,11 @@ int main() {
 
   // Get ready to do MSB-First Crc's
   for (auto& b: data)
-    b = Reflect(b);
+    b = tjg::Reflect(b);
 
   meta::ForEachType<RCrcs>([&]<typename Crc>() {
     auto result = Test<Crc>(LoopCount, data);
-    result.crc = Reflect(result.crc); // For MSB-first only.
+    result.crc = tjg::Reflect(result.crc); // For MSB-first only.
     results.emplace_back(Crc::Name, result);
   });
 
@@ -433,8 +390,8 @@ int main() {
       const auto& result = item.second;
       const auto crc = result.crc;
       cout << "\nCrc" << dec << i << "::Update = 0x" << setw(8) << crc
-                                           << " 0x" << setw(8) << Reflect(crc)
-                                           << ' ' << item.first;
+                                       << " 0x" << setw(8) << tjg::Reflect(crc)
+                                       << ' ' << item.first;
       if (crc != expected)
         cout << "................ \bWRONG!";
     }

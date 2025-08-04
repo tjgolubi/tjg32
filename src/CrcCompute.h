@@ -317,12 +317,21 @@ inline auto CrcCompute(std::unsigned_integral auto crc,
   -> decltype(crc)
 {
   using Uint = decltype(crc);
-  if constexpr (Slices > 1)
-    Expects(reinterpret_cast<std::uintptr_t>(buf.data()) % Slices == 0);
   static_assert(sizeof(Poly) <= sizeof(Uint));
   using Word = uint_t<8 * Slices>::least;
   auto p  = reinterpret_cast<const std::uint8_t*>(buf.data());
   auto sz = buf.size();
+  if constexpr (Slices > 1) {
+     auto num = static_cast<std::size_t>(
+                                 reinterpret_cast<std::uintptr_t>(p) % Slices);
+
+    if (num != 0) {
+      num = Slices - num;
+      crc = detail::CrcSlice<Poly, Dir>(crc, p, num);
+      p  += num;
+      sz -= num;
+    }
+  }
   auto p2  = reinterpret_cast<const Word*>(p);
   auto sz2 = sz / sizeof(Word);
   crc = detail::CrcSlice<Poly, Dir>(crc, p2, sz2);
@@ -349,7 +358,7 @@ inline auto CrcCompute(std::unsigned_integral auto crc,
   ///       the classic Sarwate algorithm.
   constexpr bool EnableSlicing = true;
   if constexpr (EnableSlicing) {
-    if (sz >= sizeof(std::uint64_t)) {
+    if (sz >= 8) {
       {
         // Align the buffer to 8-byte address.
         auto ip = reinterpret_cast<std::uintptr_t>(p);
