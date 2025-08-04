@@ -31,7 +31,7 @@ int main() {
   using namespace tjg;
   static constexpr auto Dir = CrcDir::LsbFirst;
   static constexpr std::size_t Bits = 64;
-  using Uint = uint_t<Bits>::least;
+  using Uint = tjg::uint_t<Bits>::least;
   static constexpr Uint Poly = 0xad93d23594c935a9;
   static constexpr auto XPoly = (Dir==CrcDir::MsbFirst) ? Poly : Reflect(Poly);
   SetHex();

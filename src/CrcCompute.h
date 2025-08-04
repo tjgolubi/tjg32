@@ -9,6 +9,7 @@
 #include <span>
 #include <concepts>
 #include <utility>
+#include <bit>
 #include <cstdint>
 #include <cstddef>
 
