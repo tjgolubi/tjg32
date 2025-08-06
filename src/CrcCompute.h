@@ -13,13 +13,23 @@
 #include <cstdint>
 #include <cstddef>
 
-#ifndef TJG_IS_LITTLE_ENDIAN
+#ifndef TJG_DEBUG_ENDIAN
 #define TJG_IS_LITTLE_ENDIAN (std::endian::native == std::endian::little)
+#else
+#define TJG_IS_LITTLE_ENDIAN (std::endian::native == std::endian::big)
 #endif
 
 namespace tjg {
 
 namespace detail {
+
+inline auto DebugByteSwap(auto n) noexcept {
+#ifdef TJG_DEBUG_ENDIAN
+      return std::byteswap(n);
+#else
+      return n;
+#endif
+} // DebugByteSwap
 
 template<int S, std::unsigned_integral U>
 requires (S > 0 && S < sizeof(U))
@@ -45,29 +55,16 @@ template<int S, std::unsigned_integral U>
 requires (S < 0 || S >= sizeof(U))
 constexpr U Rsh(U) noexcept { return U{0}; }
 
-template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir,
-         std::unsigned_integral Word, std::size_t... Is>
-requires (Dir == CrcDir::LsbFirst)
-constexpr Uint FoldAccumImpl(Word word, std::index_sequence<Is...>) {
-  return (... ^
-    CrcTable<Uint, Poly, CrcDir::LsbFirst, sizeof...(Is) - 1 - Is>::Get()
-                                [(std::uint8_t)(word >> (8 * Is))]);
-}
-
-template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir,
-         std::unsigned_integral Word, std::size_t... Is>
-requires (Dir == CrcDir::MsbFirst)
-constexpr Uint FoldAccumImpl(Word word, std::index_sequence<Is...>) {
-  return (... ^
-    CrcTable<Uint, Poly, CrcDir::MsbFirst, Is>::Get()
-                                [(std::uint8_t)(word >> (8 * Is))]);
-}
-
-template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir,
-         std::unsigned_integral Word, std::size_t N>
-constexpr Uint FoldAccum(Word word) {
-  return FoldAccumImpl<Uint, Poly, Dir, Word>(word,
-                                                std::make_index_sequence<N>{});
+template<std::unsigned_integral Uint, Uint Poly, CrcDir Dir, int Slice>
+Uint CrcTerm(Uint crc, auto word) noexcept {
+  using Word = decltype(word);
+  static constexpr const auto& Table = CrcTable<Uint, Poly, Dir, Slice>::Get();
+  static constexpr int C = sizeof(Uint);
+  static constexpr int N = sizeof(Word) - 1;
+  static constexpr int X = (Dir == CrcDir::LsbFirst)
+                         ? (N-Slice) : ((C-1) - (N-Slice));
+  static constexpr int W = (TJG_IS_LITTLE_ENDIAN) ? (N-Slice) : Slice;
+  return Table[(uint8_t) Rsh<W>(word) ^ (uint8_t) Rsh<X>(crc)];
 }
 
 template<std::unsigned_integral auto Poly, CrcDir Dir>
@@ -78,17 +75,13 @@ auto CrcSlice(std::unsigned_integral auto crc,
   using std::uint8_t;
   using Word = std::uint8_t;
   using Uint = decltype(crc);
-  Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
-  static constexpr int C = sizeof(Uint);
   static constexpr int W = sizeof(Word);
-  constexpr auto Table0 = CrcTable<Uint, Poly, Dir, 0>::Get();
+  Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
   auto ptr = buf;
   for (std::size_t i = 0; i != len; ++i) {
-    auto n = *ptr++;
-    if constexpr (Dir == CrcDir::LsbFirst)
-      crc = Rsh<W>(crc) ^ Table0[(uint8_t) n ^ (uint8_t) crc];
-    else
-      crc = Lsh<W>(crc) ^ Table0[(uint8_t) n ^ (uint8_t) Rsh<C-1>(crc)];
+    auto n = DebugByteSwap(*ptr++);
+    crc = ((Dir == CrcDir::LsbFirst) ? Rsh<W>(crc) : Lsh<W>(crc))
+        ^ CrcTerm<Uint, Poly, Dir, 0>(crc, n);
   }
   return crc;
 } // CrcSlice
@@ -101,41 +94,14 @@ auto CrcSlice(std::unsigned_integral auto crc,
   using std::uint8_t;
   using Word = std::uint16_t;
   using Uint = decltype(crc);
-  Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
-  static constexpr int C = sizeof(Uint);
   static constexpr int W = sizeof(Word);
-  constexpr auto Table0 = CrcTable<Uint, Poly, Dir, 0>::Get();
-  constexpr auto Table1 = CrcTable<Uint, Poly, Dir, 1>::Get();
+  Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
   auto ptr = buf;
   for (std::size_t i = 0; i != len; ++i) {
-    auto n = *ptr++;
-    if constexpr (Dir == CrcDir::LsbFirst) {
-      if constexpr (TJG_IS_LITTLE_ENDIAN) {
-        if constexpr (std::endian::native == std::endian::big)
-          n = std::byteswap(n);
-        crc = Rsh<W>(crc)
-            ^ Table1[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
-            ^ Table0[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)];
-      } else {
-        if constexpr (std::endian::native == std::endian::little)
-          n = std::byteswap(n);
-        crc = Rsh<W>(crc)
-            ^ Table1[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<0>(crc)]
-            ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<1>(crc)];
-      }
-    } else {
-      if constexpr (TJG_IS_LITTLE_ENDIAN) {
-        crc = Lsh<W>(crc)
-            ^ Table1[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
-            ^ Table0[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)];
-      } else {
-        if constexpr (std::endian::native == std::endian::little)
-          n = std::byteswap(n);
-        crc = Lsh<W>(crc)
-            ^ Table1[(uint8_t)(Rsh<1>(n) ^ (uint8_t) Rsh<C-1>(crc))]
-            ^ Table0[(uint8_t)(Rsh<0>(n) ^ (uint8_t) Rsh<C-2>(crc))];
-      }
-    }
+    auto n = DebugByteSwap(*ptr++);
+    crc = ((Dir == CrcDir::LsbFirst) ? Rsh<W>(crc) : Lsh<W>(crc))
+        ^ CrcTerm<Uint, Poly, Dir, 0>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 1>(crc, n);
   }
   return crc;
 } // CrcSlice
@@ -148,53 +114,16 @@ auto CrcSlice(std::unsigned_integral auto crc,
   using std::uint8_t;
   using Word = std::uint32_t;
   using Uint = decltype(crc);
-  Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
-  static constexpr int C = sizeof(Uint);
   static constexpr int W = sizeof(Word);
-  constexpr auto Table0 = CrcTable<Uint, Poly, Dir, 0>::Get();
-  constexpr auto Table1 = CrcTable<Uint, Poly, Dir, 1>::Get();
-  constexpr auto Table2 = CrcTable<Uint, Poly, Dir, 2>::Get();
-  constexpr auto Table3 = CrcTable<Uint, Poly, Dir, 3>::Get();
+  Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
   auto ptr = buf;
   for (std::size_t i = 0; i != len; ++i) {
-    auto n = *ptr++;
-    if constexpr (Dir == CrcDir::LsbFirst) {
-      if constexpr (TJG_IS_LITTLE_ENDIAN) {
-        if constexpr (std::endian::native == std::endian::big)
-          n = std::byteswap(n);
-        crc = Rsh<W>(crc)
-            ^ Table3[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
-            ^ Table2[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)]
-            ^ Table1[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<2>(crc)]
-            ^ Table0[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<3>(crc)];
-      } else {
-        if constexpr (std::endian::native == std::endian::little)
-          n = std::byteswap(n);
-        crc = Rsh<W>(crc)
-            ^ Table3[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<0>(crc)]
-            ^ Table2[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<1>(crc)]
-            ^ Table1[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<2>(crc)]
-            ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<3>(crc)];
-      }
-    } else {
-      if constexpr (TJG_IS_LITTLE_ENDIAN) {
-        if constexpr (std::endian::native == std::endian::big)
-          n = std::byteswap(n);
-        crc = Lsh<W>(crc)
-            ^ Table3[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
-            ^ Table2[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)]
-            ^ Table1[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<C-3>(crc)]
-            ^ Table0[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<C-4>(crc)];
-      } else {
-        if constexpr (std::endian::native == std::endian::little)
-          n = std::byteswap(n);
-        crc = Lsh<W>(crc)
-            ^ Table3[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<C-1>(crc)]
-            ^ Table2[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<C-2>(crc)]
-            ^ Table1[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-3>(crc)]
-            ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-4>(crc)];
-      }
-    }
+    auto n = DebugByteSwap(*ptr++);
+    crc = ((Dir == CrcDir::LsbFirst) ? Rsh<W>(crc) : Lsh<W>(crc))
+        ^ CrcTerm<Uint, Poly, Dir, 0>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 1>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 2>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 3>(crc, n);
   }
   return crc;
 } // CrcSlice
@@ -207,100 +136,23 @@ auto CrcSlice(std::unsigned_integral auto crc,
   using std::uint8_t;
   using Word = std::uint64_t;
   using Uint = decltype(crc);
-  Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
-  static constexpr int C = sizeof(Uint);
   static constexpr int W = sizeof(Word);
-  constexpr auto Table0 = CrcTable<Uint, Poly, Dir, 0>::Get();
-  constexpr auto Table1 = CrcTable<Uint, Poly, Dir, 1>::Get();
-  constexpr auto Table2 = CrcTable<Uint, Poly, Dir, 2>::Get();
-  constexpr auto Table3 = CrcTable<Uint, Poly, Dir, 3>::Get();
-  constexpr auto Table4 = CrcTable<Uint, Poly, Dir, 4>::Get();
-  constexpr auto Table5 = CrcTable<Uint, Poly, Dir, 5>::Get();
-  constexpr auto Table6 = CrcTable<Uint, Poly, Dir, 6>::Get();
-  constexpr auto Table7 = CrcTable<Uint, Poly, Dir, 7>::Get();
+  Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
   auto ptr = buf;
   for (std::size_t i = 0; i != len; ++i) {
-    auto n = *ptr++;
-    if constexpr (Dir == CrcDir::LsbFirst) {
-      if constexpr (TJG_IS_LITTLE_ENDIAN) {
-        if constexpr (std::endian::native == std::endian::big)
-          n = std::byteswap(n);
-        crc = Rsh<W>(crc)
-            ^ Table7[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<0>(crc)]
-            ^ Table6[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<1>(crc)]
-            ^ Table5[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<2>(crc)]
-            ^ Table4[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<3>(crc)]
-            ^ Table3[(uint8_t) Rsh<4>(n) ^ (uint8_t) Rsh<4>(crc)]
-            ^ Table2[(uint8_t) Rsh<5>(n) ^ (uint8_t) Rsh<5>(crc)]
-            ^ Table1[(uint8_t) Rsh<6>(n) ^ (uint8_t) Rsh<6>(crc)]
-            ^ Table0[(uint8_t) Rsh<7>(n) ^ (uint8_t) Rsh<7>(crc)];
-      } else {
-        if constexpr (std::endian::native == std::endian::little)
-          n = std::byteswap(n);
-        crc = Rsh<W>(crc)
-            ^ Table7[(uint8_t) Rsh<7>(n) ^ (uint8_t) Rsh<0>(crc)]
-            ^ Table6[(uint8_t) Rsh<6>(n) ^ (uint8_t) Rsh<1>(crc)]
-            ^ Table5[(uint8_t) Rsh<5>(n) ^ (uint8_t) Rsh<2>(crc)]
-            ^ Table4[(uint8_t) Rsh<4>(n) ^ (uint8_t) Rsh<3>(crc)]
-            ^ Table3[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<4>(crc)]
-            ^ Table2[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<5>(crc)]
-            ^ Table1[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<6>(crc)]
-            ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<7>(crc)];
-      }
-    } else {
-      if constexpr (TJG_IS_LITTLE_ENDIAN) {
-        if constexpr (std::endian::native == std::endian::big)
-          n = std::byteswap(n);
-        crc = Lsh<W>(crc)
-            ^ Table7[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-1>(crc)]
-            ^ Table6[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-2>(crc)]
-            ^ Table5[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<C-3>(crc)]
-            ^ Table4[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<C-4>(crc)]
-            ^ Table3[(uint8_t) Rsh<4>(n) ^ (uint8_t) Rsh<C-5>(crc)]
-            ^ Table2[(uint8_t) Rsh<5>(n) ^ (uint8_t) Rsh<C-6>(crc)]
-            ^ Table1[(uint8_t) Rsh<6>(n) ^ (uint8_t) Rsh<C-7>(crc)]
-            ^ Table0[(uint8_t) Rsh<7>(n) ^ (uint8_t) Rsh<C-8>(crc)];
-      } else {
-        if constexpr (std::endian::native == std::endian::little)
-          n = std::byteswap(n);
-        crc = Lsh<W>(crc)
-            ^ Table7[(uint8_t) Rsh<7>(n) ^ (uint8_t) Rsh<C-1>(crc)]
-            ^ Table6[(uint8_t) Rsh<6>(n) ^ (uint8_t) Rsh<C-2>(crc)]
-            ^ Table5[(uint8_t) Rsh<5>(n) ^ (uint8_t) Rsh<C-3>(crc)]
-            ^ Table4[(uint8_t) Rsh<4>(n) ^ (uint8_t) Rsh<C-4>(crc)]
-            ^ Table3[(uint8_t) Rsh<3>(n) ^ (uint8_t) Rsh<C-5>(crc)]
-            ^ Table2[(uint8_t) Rsh<2>(n) ^ (uint8_t) Rsh<C-6>(crc)]
-            ^ Table1[(uint8_t) Rsh<1>(n) ^ (uint8_t) Rsh<C-7>(crc)]
-            ^ Table0[(uint8_t) Rsh<0>(n) ^ (uint8_t) Rsh<C-8>(crc)];
-      }
-    }
+    auto n = DebugByteSwap(*ptr++);
+    crc = ((Dir == CrcDir::LsbFirst) ? Rsh<W>(crc) : Lsh<W>(crc))
+        ^ CrcTerm<Uint, Poly, Dir, 0>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 1>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 2>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 3>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 4>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 5>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 6>(crc, n)
+        ^ CrcTerm<Uint, Poly, Dir, 7>(crc, n);
   }
   return crc;
 } // CrcSlice
-
-#if 0
-template<typename Uint, Uint Poly, CrcDir Dir, std::size_t Bytes>
-requires (Bytes > 2)
-Uint CrcSlice(Uint crc, const std::byte* buf, std::size_t len) noexcept {
-  using Word = uint_t<8 * Bytes>::least;
-  Expects(reinterpret_cast<std::uintptr_t>(buf) % alignof(Word) == 0);
-
-  auto ptr = reinterpret_cast<const Word*>(buf);
-  const std::size_t num = len / Bytes;
-  const std::size_t rem = len % Bytes;
-  for (std::size_t i = 0; i != num; ++i)
-    crc = (crc >> 8) ^ FoldAccum<Uint, Poly, Dir, Word, Bytes>(*ptr++);
-
-  if constexpr (Bytes > 1) {
-    if (rem != 0) {
-      crc = CrcSlice<Uint, Poly, Dir, 1>(crc,
-                                reinterpret_cast<const std::byte*>(ptr), rem);
-    }
-  }
-
-  return crc;
-} // CrcSlice
-#endif
 
 } // detail
 
