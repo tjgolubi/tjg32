@@ -1723,15 +1723,19 @@ struct IsBitsEqual {
 
 template<std::size_t N>
 using KnownNBitCrcs = meta::FilterT<IsBitsEqual<N>::template apply, KnownCrcs>;
-using Known8BitCrs   = KnownNBitCrcs< 8>;
+using Known8BitCrcs  = KnownNBitCrcs< 8>;
 using Known16BitCrcs = KnownNBitCrcs<16>;
 using Known32BitCrcs = KnownNBitCrcs<32>;
 using Known64BitCrcs = KnownNBitCrcs<64>;
 
-template<std::size_t N>
 struct IsLsbFirst {
   template<class T>
-  using apply = std::bool_constant<T::ReflectIn == N>;
+  using apply = std::bool_constant<T::ReflectIn>;
+};
+
+struct IsMsbFirst {
+  template<class T>
+  using apply = std::bool_constant<!T::ReflectIn>;
 };
 
 } // tjg

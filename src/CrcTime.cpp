@@ -67,31 +67,23 @@ auto RunSlices(std::span<const std::byte> data) {
   return results;
 } // RunSlices
 
-int main() {
-  constexpr auto Seed = 12345;
-  std::mt19937 rng{Seed};
-
-  std::cout << "Generating random bytes" << std::flush;
-  // Fill data with pseudo-random bytes
-  std::vector<std::byte> data;
-  {
-    rng.seed(Seed);
-    constexpr std::size_t Size = 10 << 20;  // 10 MiB
-    data.reserve(Size);
-    for (int i = 0; i != Size; ++i)
-      data.push_back(static_cast<std::byte>(rng() & 0xff));
-  }
-
+template<class CrcTraitsList, int... SliceVals>
+bool TestCrcTraits(std::span<const std::byte> data) {
   using Results =
                 std::vector<std::pair<std::string_view, std::vector<TimedCrc>>>;
   Results results;
-  results.reserve(meta::LengthV<tjg::KnownCrcs>);
+  results.reserve(meta::LengthV<CrcTraitsList>);
 
-  meta::ForEachType<tjg::KnownCrcs>([&]<class CrcTraits>() {
-    results.emplace_back(
-                CrcTraits::Name, RunSlices<CrcTraits, 0, 1, 2, 4, 8>(data));
+  auto sums = std::array<Clock::duration, sizeof...(SliceVals)>{};
+
+  meta::ForEachType<CrcTraitsList>([&]<class CrcTraits>() {
+    auto rv = RunSlices<CrcTraits, SliceVals...>(data);
+    for (int i = 0; i != std::ssize(rv); ++i)
+      sums[i] += rv[i].elapsed;
+    results.emplace_back(CrcTraits::Name, std::move(rv));
   });
 
+  bool testResult = true;
   {
     using namespace std;
     auto save = tjg::SaveIo{cout};
@@ -107,12 +99,50 @@ int main() {
       for (const auto& result: rv) {
         if (result.crc != crc) {
           cout << " CRC WRONG!";
+          testResult = false;
           break;
         }
       }
     }
+    cout << '\n' << left << setw(20) << "Average (MiB/s):" << right;
+    for (auto elapsed: sums) {
+      auto s = std::chrono::duration<double>(elapsed) / results.size();
+      auto rate = static_cast<double>(data.size()) / (1 << 20) / s.count();
+      cout << setw(8) << rate;
+    }
     cout << endl;
   }
+  return testResult;
+} // TestCrcTraits
+
+int main() {
+  constexpr auto Seed = 12345;
+  std::mt19937 rng{Seed};
+
+  std::cout << "Generating random bytes" << std::flush;
+  // Fill data with pseudo-random bytes
+  std::vector<std::byte> data;
+  {
+    rng.seed(Seed);
+    constexpr std::size_t Size = 10 << 20;  // 10 MiB
+    data.reserve(Size);
+    for (int i = 0; i != Size; ++i)
+      data.push_back(static_cast<std::byte>(rng() & 0xff));
+  }
+
+  using CrcSets =
+    meta::TypeList<tjg::KnownAbnormalCrcs,
+                   tjg::Known8BitCrcs,  tjg::Known16BitCrcs,
+                   tjg::Known32BitCrcs, tjg::Known64BitCrcs>;
+
+  meta::ForEachType<CrcSets>([&]<class CrcTraitsList>() {
+    std::cout << "\nLSB Tests\n";
+    using LsbCrcs = meta::FilterT<tjg::IsLsbFirst::template apply, CrcTraitsList>;
+    (void) TestCrcTraits<LsbCrcs, 0, 1, 2, 4, 8>(data);
+    std::cout << "\nMSB Tests\n";
+    using MsbCrcs = meta::FilterT<tjg::IsMsbFirst::template apply, CrcTraitsList>;
+    (void) TestCrcTraits<MsbCrcs, 0, 1, 2, 4, 8>(data);
+  });
 
   return EXIT_SUCCESS;
 } // main
