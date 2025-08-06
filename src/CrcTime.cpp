@@ -33,13 +33,18 @@ struct TimedCrc {
 
 namespace detail {
 
-template<class CrcTraits, std::size_t SliceVal>
+template<class CrcTraits, bool Bytes, std::size_t SliceVal>
 auto RunCrcTestVariant(std::span<const std::byte> data) {
   std::cerr << ' ' << SliceVal << std::flush;
 
   auto start = Clock::now();
   tjg::CrcKnown<CrcTraits, SliceVal> crc;
-  crc.update(data);
+  if constexpr (Bytes) {
+    for (auto b: data)
+      crc.update(b);
+  } else {
+    crc.update(data);
+  }
   auto result = crc.value();
   auto stop = Clock::now();
 
@@ -48,7 +53,7 @@ auto RunCrcTestVariant(std::span<const std::byte> data) {
 
 } // detail
 
-template<class CrcTraits, int... SliceVals>
+template<class CrcTraits, bool Bytes, std::size_t... SliceVals>
 auto RunSlices(std::span<const std::byte> data) {
   auto save = tjg::SaveIo{std::cerr};
   std::cerr << "Running " << std:: setw(20) << std::left
@@ -58,13 +63,13 @@ auto RunSlices(std::span<const std::byte> data) {
   results.reserve(sizeof...(SliceVals));
 
   (results.emplace_back(
-     detail::RunCrcTestVariant<CrcTraits, SliceVals>(data)), ...);
+     detail::RunCrcTestVariant<CrcTraits, Bytes, SliceVals>(data)), ...);
 
   std::cerr << std::endl;
   return results;
 } // RunSlices
 
-template<class CrcTraitsList, int... SliceVals>
+template<class CrcTraitsList, bool Bytes, std::size_t... SliceVals>
 bool TestCrcTraits(std::span<const std::byte> data) {
   using Results =
                 std::vector<std::pair<std::string_view, std::vector<TimedCrc>>>;
@@ -74,7 +79,7 @@ bool TestCrcTraits(std::span<const std::byte> data) {
   auto sums = std::array<Clock::duration, sizeof...(SliceVals)>{};
 
   meta::ForEachType<CrcTraitsList>([&]<class CrcTraits>() {
-    auto rv = RunSlices<CrcTraits, SliceVals...>(data);
+    auto rv = RunSlices<CrcTraits, Bytes, SliceVals...>(data);
     for (int i = 0; i != std::ssize(rv); ++i)
       sums[i] += rv[i].elapsed;
     results.emplace_back(CrcTraits::Name, std::move(rv));
@@ -112,10 +117,10 @@ bool TestCrcTraits(std::span<const std::byte> data) {
   return testResult;
 } // TestCrcTraits
 
-template<class CrcTraitsList, int... SliceVals> inline
+template<class CrcTraitsList, bool Bytes, std::size_t... SliceVals> inline
 bool TestCrcTraits(std::span<const std::byte> data,
-                   std::integer_sequence<int, SliceVals...>)
-{ return TestCrcTraits<CrcTraitsList, SliceVals...>(data); }
+                   std::index_sequence<SliceVals...>)
+{ return TestCrcTraits<CrcTraitsList, Bytes, SliceVals...>(data); }
 
 int main() {
   constexpr auto Seed = 12345;
@@ -138,15 +143,28 @@ int main() {
                    tjg::Known8BitCrcs,  tjg::Known16BitCrcs,
                    tjg::Known32BitCrcs, tjg::Known64BitCrcs>;
 
-  using Slices = std::integer_sequence<int, 0, 1, 2, 4, 8>;
+  using Slices = std::index_sequence<0, 1, 2, 4, 8>;
 
   meta::ForEachType<CrcSets>([&]<class CrcTraitsList>() {
     std::cout << "\nLSB Tests\n";
-    using LsbCrcs = meta::FilterT<tjg::IsLsbFirst::template apply, CrcTraitsList>;
-    (void) TestCrcTraits<LsbCrcs>(data, Slices{});
+    using LsbCrcs =
+                  meta::FilterT<tjg::IsLsbFirst::template apply, CrcTraitsList>;
+    (void) TestCrcTraits<LsbCrcs, false>(data, Slices{});
     std::cout << "\nMSB Tests\n";
-    using MsbCrcs = meta::FilterT<tjg::IsMsbFirst::template apply, CrcTraitsList>;
-    (void) TestCrcTraits<MsbCrcs>(data, Slices{});
+    using MsbCrcs =
+                  meta::FilterT<tjg::IsMsbFirst::template apply, CrcTraitsList>;
+    (void) TestCrcTraits<MsbCrcs, false>(data, Slices{});
+  });
+
+  meta::ForEachType<CrcSets>([&]<class CrcTraitsList>() {
+    std::cout << "\nLSB Tests\n";
+    using LsbCrcs =
+                  meta::FilterT<tjg::IsLsbFirst::template apply, CrcTraitsList>;
+    (void) TestCrcTraits<LsbCrcs, true>(data, Slices{});
+    std::cout << "\nMSB Tests\n";
+    using MsbCrcs =
+                  meta::FilterT<tjg::IsMsbFirst::template apply, CrcTraitsList>;
+    (void) TestCrcTraits<MsbCrcs, true>(data, Slices{});
   });
 
   return EXIT_SUCCESS;

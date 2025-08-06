@@ -61,7 +61,7 @@ auto CrcSlice(auto crc, std::uint8_t byte) noexcept {
   using Uint = decltype(crc);
   static constexpr const auto& Table = CrcTable<Uint, Poly, Dir, 0>::Get();
   if (Dir == CrcDir::LsbFirst)
-    crc = Rsh<1>(crc) ^ Table[byte ^ (uint8_t) crc ^ byte];
+    crc = Rsh<1>(crc) ^ Table[byte ^ (uint8_t) crc];
   else
     crc = Lsh<1>(crc) ^ Table[byte ^ (uint8_t) Rsh<sizeof(Uint)-1>(crc)];
   return crc;
@@ -107,14 +107,14 @@ auto CrcSlice(auto crc, const auto* buf, std::size_t len) noexcept {
 // Poly must already be reflected for LsbFirst.
 template<std::unsigned_integral auto Poly, CrcDir Dir, std::size_t Slices = 1>
 requires (Slices > 0)
-inline auto CrcCompute(std::unsigned_integral auto crc, std::byte byte) noexcept
-{ return detail::CrcSlice<Poly, Dir>(crc, byte); }
+inline auto CrcCompute(std::unsigned_integral auto crc, std::byte b) noexcept
+{ return detail::CrcSlice<Poly, Dir>(crc, std::to_integer<std::uint8_t>(b)); }
 
 // Poly must already be reflected for LsbFirst.
 template<std::unsigned_integral auto Poly, CrcDir Dir, std::size_t Slices = 1>
 requires (Slices == 0)
-inline auto CrcCompute(std::unsigned_integral auto crc, std::byte byte) noexcept
-{ return CrcUpdate<Poly, Dir>(crc, byte); }
+inline auto CrcCompute(std::unsigned_integral auto crc, std::byte b) noexcept
+{ return CrcUpdate<Poly, Dir>(crc, b); }
 
 // Poly must already be reflected for LsbFirst.
 template<std::unsigned_integral auto Poly, CrcDir Dir, std::size_t Slices = 8>
