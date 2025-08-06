@@ -9,15 +9,16 @@
 
 namespace tjg {
 
-template<std::size_t Bits, uint_t<Bits>::least Poly, CrcDir Dir,
-         int Slices = -1>
-requires (Bits >= 3 && Bits <= 64)
+template<std::size_t Bits_, uint_t<Bits_>::least Poly_, CrcDir Dir_,
+         std::size_t Slices_ = 8>
+requires (Bits_ >= 3 && Bits_ <= 64)
 class CrcEngine {
 public:
+  static constexpr auto   Bits = Bits_;
+  static constexpr auto   Poly = Poly_;
+  static constexpr CrcDir Dir  = Dir_;
+  static constexpr auto Slices = Slices_;
   using CrcType = uint_t<Bits>::least;
-  static constexpr auto   bits = Bits;
-  static constexpr auto   poly = Poly;
-  static constexpr CrcDir dir  = Dir;
 
 protected:
   static constexpr auto CrcBits = 8 * sizeof(CrcType);

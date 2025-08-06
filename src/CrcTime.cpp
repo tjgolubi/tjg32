@@ -33,23 +33,18 @@ struct TimedCrc {
 
 namespace detail {
 
-template<class CrcTraits>
+template<class CrcTraits, std::size_t SliceVal>
 auto RunCrcTestVariant(std::span<const std::byte> data) {
-  std::cerr << ' ' << CrcTraits::Slices << std::flush;
+  std::cerr << ' ' << SliceVal << std::flush;
 
   auto start = Clock::now();
-  tjg::CrcKnown<CrcTraits> crc;
+  tjg::CrcKnown<CrcTraits, SliceVal> crc;
   crc.update(data);
   auto result = crc.value();
   auto stop = Clock::now();
 
   return TimedCrc{result, stop - start};
 } // RunCrcTestVariant
-
-template<class CrcTraits, int Slices_>
-struct WithSlices: CrcTraits {
-  static constexpr int Slices = Slices_;  // hide/override base class
-}; // WithSlices
 
 } // detail
 
@@ -63,7 +58,7 @@ auto RunSlices(std::span<const std::byte> data) {
   results.reserve(sizeof...(SliceVals));
 
   (results.emplace_back(
-     detail::RunCrcTestVariant<detail::WithSlices<CrcTraits, SliceVals>>(data)), ...);
+     detail::RunCrcTestVariant<CrcTraits, SliceVals>(data)), ...);
 
   std::cerr << std::endl;
   return results;

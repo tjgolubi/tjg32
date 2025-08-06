@@ -25,27 +25,6 @@ class CrcTable : public std::array<Uint, 256> {
 private:
   using Table = std::array<Uint, 256>;
 
-#if 0
-  static consteval Table Generate() noexcept
-  requires (Slice == 0)
-  {
-    auto table = Table{};
-    using Int = std::make_signed_t<Uint>;
-    table[0] = Uint{0};
-    auto crc = table[0x80] = Poly;
-    for (unsigned step = 0x40; step != 0; step >>= 1) {
-      if constexpr (Dir == CrcDir::LsbFirst)
-        crc = (crc >> 1) ^ (-(crc & 1) & Poly);
-      else
-        crc = (crc << 1) ^ (-Uint((Int)crc < 0) & Poly);
-      table[step] = crc;
-      for (unsigned i = 3 * step; i < 256; i += step << 1)
-        table[i] = crc ^ table[i - step];
-    }
-    return table;
-  }; // Generate
-#endif
-
   static consteval Table Generate() noexcept
   requires (Slice == 0 && Dir == CrcDir::MsbFirst)
   {

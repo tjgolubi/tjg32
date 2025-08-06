@@ -40,10 +40,10 @@ bool Test() {
   tjg::SetHex(cout);
   int width = 2 * sizeof(typename Crc::CrcType);
   cout << "\nReturned value is not as expected."
-    << "\nBits         =   " << dec << Crc::bits << hex
-    << "\nPoly         = 0x" << setw(width) << Value(Crc::poly)
+    << "\nBits         =   " << dec << Crc::Bits << hex
+    << "\nPoly         = 0x" << setw(width) << Value(Crc::Poly)
     << "\nDir          =   "
-    << ((Crc::dir == tjg::CrcDir::LsbFirst) ? "LSB" : "MSB")
+    << ((Crc::Dir == tjg::CrcDir::LsbFirst) ? "LSB" : "MSB")
     << "\nCheck        = 0x" << setw(width) << Value(Crc::Check)
     << "\nCrc          = 0x" << setw(width) << Value(crc.value())
     << "\nReflect(Crc) = 0x" << setw(width) << Value(tjg::Reflect(crc.value()))
