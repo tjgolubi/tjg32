@@ -35,7 +35,7 @@ namespace detail {
 
 template<class CrcTraits>
 auto RunCrcTestVariant(std::span<const std::byte> data) {
-  std::cout << ' ' << CrcTraits::Slices << std::flush;
+  std::cerr << ' ' << CrcTraits::Slices << std::flush;
 
   auto start = Clock::now();
   tjg::CrcKnown<CrcTraits> crc;
@@ -55,7 +55,9 @@ struct WithSlices: CrcTraits {
 
 template<class CrcTraits, int... SliceVals>
 auto RunSlices(std::span<const std::byte> data) {
-  std::cout << "Running " << CrcTraits::Name << std::flush;
+  auto save = tjg::SaveIo{std::cerr};
+  std::cerr << "Running " << std:: setw(20) << std::left
+            << CrcTraits::Name << std::right << std::flush;
 
   std::vector<TimedCrc> results;
   results.reserve(sizeof...(SliceVals));
@@ -63,7 +65,7 @@ auto RunSlices(std::span<const std::byte> data) {
   (results.emplace_back(
      detail::RunCrcTestVariant<detail::WithSlices<CrcTraits, SliceVals>>(data)), ...);
 
-  std::cout << std::endl;
+  std::cerr << std::endl;
   return results;
 } // RunSlices
 
@@ -119,7 +121,7 @@ int main() {
   constexpr auto Seed = 12345;
   std::mt19937 rng{Seed};
 
-  std::cout << "Generating random bytes" << std::flush;
+  std::cerr << "Generating random bytes " << std::flush;
   // Fill data with pseudo-random bytes
   std::vector<std::byte> data;
   {
@@ -129,6 +131,7 @@ int main() {
     for (int i = 0; i != Size; ++i)
       data.push_back(static_cast<std::byte>(rng() & 0xff));
   }
+  std::cerr << "done." << std::endl;
 
   using CrcSets =
     meta::TypeList<tjg::KnownAbnormalCrcs,
