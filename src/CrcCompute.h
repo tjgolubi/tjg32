@@ -365,7 +365,7 @@ inline auto CrcCompute(std::unsigned_integral auto crc,
         auto rem = ip % 8;
         if (rem != 0) {
           auto n = 8 - rem;
-          crc = CrcSlice<Poly, Dir>(crc, p, n);
+          crc = detail::CrcSlice<Poly, Dir>(crc, p, n);
           p  += n;
           sz -= n;
         }

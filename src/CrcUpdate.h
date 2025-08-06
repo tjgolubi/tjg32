@@ -11,12 +11,12 @@ namespace tjg {
 enum class CrcDir { LsbFirst, MsbFirst };
 
 // CRC_MASK_WORD evaluates to either 0 or ~0, depending on the MSB of its
-// argument.  The first DEBUG implementation runs faster when compiled
-// with -O0 or -Og.  For all other optimization levels, the second wins.
+// argument.  The DEBUG implementation runs faster when compiled
+// with -O0 or -Og.  For all other optimization levels, the other wins.
 #ifndef DEBUG
 #define CRC_MASK_WORD(x) (-(Uint)((Int)(x) < Int{0}))
 #else
-#define CRC_MASK_WORD(x) ((Uint)((Int)(x) >> Shift))
+#define CRC_MASK_WORD(x) ((Uint)((Int)(x) >> (8*sizeof(Uint)-1)))
 #endif
 
 template<std::unsigned_integral auto Poly, CrcDir Dir>

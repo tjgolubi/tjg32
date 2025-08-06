@@ -117,6 +117,11 @@ bool TestCrcTraits(std::span<const std::byte> data) {
   return testResult;
 } // TestCrcTraits
 
+template<class CrcTraitsList, int... SliceVals> inline
+bool TestCrcTraits(std::span<const std::byte> data,
+                   std::integer_sequence<int, SliceVals...>)
+{ return TestCrcTraits<CrcTraitsList, SliceVals...>(data); }
+
 int main() {
   constexpr auto Seed = 12345;
   std::mt19937 rng{Seed};
@@ -138,13 +143,15 @@ int main() {
                    tjg::Known8BitCrcs,  tjg::Known16BitCrcs,
                    tjg::Known32BitCrcs, tjg::Known64BitCrcs>;
 
+  using Slices = std::integer_sequence<int, 0, 1, 2, 4, 8>;
+
   meta::ForEachType<CrcSets>([&]<class CrcTraitsList>() {
     std::cout << "\nLSB Tests\n";
     using LsbCrcs = meta::FilterT<tjg::IsLsbFirst::template apply, CrcTraitsList>;
-    (void) TestCrcTraits<LsbCrcs, 0, 1, 2, 4, 8>(data);
+    (void) TestCrcTraits<LsbCrcs>(data, Slices{});
     std::cout << "\nMSB Tests\n";
     using MsbCrcs = meta::FilterT<tjg::IsMsbFirst::template apply, CrcTraitsList>;
-    (void) TestCrcTraits<MsbCrcs, 0, 1, 2, 4, 8>(data);
+    (void) TestCrcTraits<MsbCrcs>(data, Slices{});
   });
 
   return EXIT_SUCCESS;
