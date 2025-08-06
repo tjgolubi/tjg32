@@ -54,7 +54,6 @@ bool Test() {
 int main() {
   int failCount = 0;
 
-//  using Crcs = tjg::Known32BitCrcs;
   using Crcs = tjg::KnownCrcs;
 
   meta::ForEachType<Crcs>([&]<typename CrcTraits>() {
