@@ -97,8 +97,8 @@ private:
   requires (Slice > 0 && Slice <= 8)
   {
     auto table = Table{};
-    auto& Tbl0=Lookup<Uint, Poly, Dir, 0>::Get();
-    auto& Prev=Lookup<Uint, Poly, Dir, Slice-1>::Get();
+    auto& Tbl0 = Lookup<Uint, Poly, Dir, 0>::Get();
+    auto& Prev = Lookup<Uint, Poly, Dir, Slice-1>::Get();
     static constexpr auto Shift = 8 * sizeof(Uint) - 8;
     for (int i = 0; i != 256; ++i) {
       auto crc = Prev[i];
@@ -172,11 +172,10 @@ auto DoSlice(auto crc, std::uint8_t byte) noexcept {
 template<std::unsigned_integral Uint, Uint Poly, Endian Dir, std::size_t Slice>
 Uint Term(Uint crc, auto word) noexcept {
   using std::uint8_t;
-  using Word = decltype(word);
   static constexpr const auto& Table = Lookup<Uint, Poly, Dir, Slice>::Get();
   static constexpr int S = Slice;
   static constexpr int C = sizeof(Uint);
-  static constexpr int N = sizeof(Word) - 1;
+  static constexpr int N = sizeof(word) - 1;
   static constexpr int X = (Dir == Endian::LsbFirst) ? (N-S) : ((C-1) - (N-S));
   static constexpr int W = (TJG_IS_LITTLE_ENDIAN) ? (N-Slice) : Slice;
   return Table[(uint8_t) Rsh<W>(word) ^ (uint8_t) Rsh<X>(crc)];
@@ -187,8 +186,7 @@ auto DoSliceImpl(auto crc, const auto* buf, std::size_t len,
                   std::index_sequence<SliceVals...>) noexcept
 {
   using Uint = decltype(crc);
-  using Word = std::remove_cvref_t<decltype(*buf)>;
-  static constexpr int W = sizeof(Word);
+  static constexpr int W = sizeof(*buf);
   while (len--) {
     auto n = DebugByteSwap(*buf++);
     crc = ((Dir == Endian::LsbFirst) ? Rsh<W>(crc) : Lsh<W>(crc))
@@ -275,7 +273,7 @@ class Crc {
 public:
   static constexpr auto   Bits = Bits_;
   static constexpr auto   Poly = Poly_;
-  static constexpr Endian Dir  = Dir_;
+  static constexpr auto   Dir  = Dir_;
   static constexpr auto Slices = Slices_;
 
   using value_type = uint_t<Bits>::least;
