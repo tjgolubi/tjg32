@@ -18,15 +18,31 @@ namespace tjg::crc {
 enum class Endian { LsbFirst, MsbFirst };
 
 namespace detail {
-//
-// CRC_MASK_WORD evaluates to either 0 or ~0, depending on the MSB of its
-// argument.  The DEBUG implementation runs faster when compiled
+
+// Mask evaluates to either 0 or ~0, depending on the MSB of its
+// argument. This is used to & with the polynomial to avoid using a branch.
+// The DEBUG implementation runs faster when compiled
 // with -O0 or -Og.  For all other optimization levels, the other wins.
+constexpr auto MsbMask(std::unsigned_integral auto x) noexcept
+  -> decltype(x)
+{
+  using Uint = decltype(x);
+  using Int  = std::make_signed_t<Uint>;
 #ifndef DEBUG
-#define CRC_MASK_WORD(x) (-(Uint)((Int)(x) < Int{0}))
+  return -(Uint)((Int) x < Int{0});
 #else
-#define CRC_MASK_WORD(x) ((Uint)((Int)(x) >> (8*sizeof(Uint)-1)))
+  static constexpr auto Shift = 8 * sizeof(x) - 1;
+  return (Uint)((Int) x >> Shift);
 #endif
+} // MsbMask
+
+// Mask evaluates to either 0 or ~0, depending on the LSB of its
+// argument. This is used to & with the polynomial to avoid using a branch.
+constexpr auto LsbMask(std::unsigned_integral auto x) noexcept
+  -> decltype(x)
+{
+  return -(x & 1);
+} // LsbMask
 
 template<std::unsigned_integral auto Poly, Endian Dir>
 requires (Dir == Endian::MsbFirst)
@@ -34,10 +50,9 @@ constexpr auto Update(std::unsigned_integral auto crc, std::byte in) noexcept
   -> decltype(crc)
 {
   using Uint = decltype(crc);
-  using Int = std::make_signed_t<Uint>;
   crc ^= std::to_integer<Uint>(in) << 8 * (sizeof(Uint)-1);
   for (int i = 0; i != 8; ++i)
-    crc = (crc << 1) ^ (CRC_MASK_WORD(crc) & Poly);
+    crc = (crc << 1) ^ (MsbMask(crc) & Poly);
   return crc;
 } // Update MsbFirst
 
@@ -48,15 +63,11 @@ constexpr auto Update(std::unsigned_integral auto crc, std::byte in) noexcept
   -> decltype(crc)
 {
   using Uint = decltype(crc);
-  using Int = std::make_signed_t<Uint>;
-  constexpr auto Shift = 8 * sizeof(Uint) - 1;
   crc ^= std::to_integer<Uint>(in);
   for (int i = 0; i != 8; ++i)
-    crc = (crc >> 1) ^ (CRC_MASK_WORD(crc<<Shift) & Poly);
+    crc = (crc >> 1) ^ (LsbMask(crc) & Poly);
   return crc;
 } // Update LsbFirst
-
-#undef CRC_MASK_WORD
 
 template<std::unsigned_integral Uint, Uint Poly, Endian Dir, std::size_t Slice>
 class Lookup : public std::array<Uint, 256> {
@@ -67,12 +78,11 @@ private:
   requires (Slice == 0 && Dir == Endian::MsbFirst)
   {
     auto table = Table{};
-    using Int = std::make_signed_t<Uint>;
     static constexpr auto Shift = 8 * sizeof(Uint) - 1;
     Uint crc = Uint{1} << Shift;
     table[0] = Uint{0};
     for (unsigned i = 0x01; i != 0x100; i <<= 1) {
-      crc = (crc << 1) ^ (((crc >> Shift) & 1) ? Poly : 0);
+      crc = (crc << 1) ^ (MsbMask(crc) & Poly);
       for (unsigned j = 0; j != i; ++j)
         table[i+j] = crc ^ table[j];
     }
@@ -86,7 +96,7 @@ private:
     Uint crc = Uint{1};
     table[0] = Uint{0};
     for (unsigned i = 0x80; i != 0x00; i >>= 1) {
-      crc = (crc >> 1) ^ ((crc & 1) ? Poly : 0);
+      crc = (crc >> 1) ^ (LsbMask(crc) & Poly);
       for (unsigned j = 0; j < 256; j += 2 * i)
         table[i+j] = crc ^ table[j];
     }
@@ -105,7 +115,7 @@ private:
       if (Dir == Endian::LsbFirst)
         table[i] = (crc >> 8) ^ Tbl0[(std::uint8_t) crc];
       else
-        table[i] = (crc << 8) ^ Tbl0[crc >> Shift];
+        table[i] = (crc << 8) ^ Tbl0[(std::uint8_t) (crc >> Shift)];
     }
     return table;
   }; // Generate
@@ -118,20 +128,6 @@ public:
     return TheTable;
   }
 }; // Lookup
-
-#ifndef TJG_DEBUG_ENDIAN
-#define TJG_IS_LITTLE_ENDIAN (std::endian::native == std::endian::little)
-#else
-#define TJG_IS_LITTLE_ENDIAN (std::endian::native == std::endian::big)
-#endif
-
-inline auto DebugByteSwap(auto n) noexcept {
-#ifdef TJG_DEBUG_ENDIAN
-  return std::byteswap(n);
-#else
-  return n;
-#endif
-} // DebugByteSwap
 
 template<int S, std::unsigned_integral U>
 requires (S > 0 && S < sizeof(U))
@@ -158,32 +154,47 @@ requires (S < 0 || S >= sizeof(U))
 constexpr U Rsh(U) noexcept { return U{0}; }
 
 template<std::unsigned_integral auto Poly, Endian Dir>
-auto DoSlice(auto crc, std::uint8_t byte) noexcept {
+constexpr auto DoSlice(auto crc, std::uint8_t byte) noexcept {
   using std::uint8_t;
   using Uint = decltype(crc);
   static constexpr const auto& Table = Lookup<Uint, Poly, Dir, 0>::Get();
   if (Dir == Endian::LsbFirst)
-    crc = Rsh<1>(crc) ^ Table[byte ^ (uint8_t) crc];
+    return Rsh<1>(crc) ^ Table[byte ^ (uint8_t) crc];
   else
-    crc = Lsh<1>(crc) ^ Table[byte ^ (uint8_t) Rsh<sizeof(Uint)-1>(crc)];
-  return crc;
+    return Lsh<1>(crc) ^ Table[byte ^ (uint8_t) Rsh<sizeof(Uint)-1>(crc)];
 } // DoSlice
 
+constexpr bool IsLittleEndian() noexcept {
+#ifndef TJG_DEBUG_ENDIAN
+  return (std::endian::native == std::endian::little);
+#else
+  return (std::endian::native != std::endian::little);
+#endif
+} // IsLittleEndian
+
+constexpr auto DebugByteSwap(auto n) noexcept {
+#ifdef TJG_DEBUG_ENDIAN
+  return std::byteswap(n);
+#else
+  return n;
+#endif
+} // DebugByteSwap
+
 template<std::unsigned_integral Uint, Uint Poly, Endian Dir, std::size_t Slice>
-Uint Term(Uint crc, auto word) noexcept {
+constexpr Uint Term(Uint crc, auto word) noexcept {
   using std::uint8_t;
   static constexpr const auto& Table = Lookup<Uint, Poly, Dir, Slice>::Get();
   static constexpr int S = Slice;
   static constexpr int C = sizeof(Uint);
   static constexpr int N = sizeof(word) - 1;
   static constexpr int X = (Dir == Endian::LsbFirst) ? (N-S) : ((C-1) - (N-S));
-  static constexpr int W = (TJG_IS_LITTLE_ENDIAN) ? (N-Slice) : Slice;
+  static constexpr int W = IsLittleEndian() ? (N-Slice) : Slice;
   return Table[(uint8_t) Rsh<W>(word) ^ (uint8_t) Rsh<X>(crc)];
 }
 
 template<std::unsigned_integral auto Poly, Endian Dir, std::size_t... SliceVals>
-auto DoSliceImpl(auto crc, const auto* buf, std::size_t len,
-                  std::index_sequence<SliceVals...>) noexcept
+constexpr auto DoSliceImpl(auto crc, const auto* buf, std::size_t len,
+                           std::index_sequence<SliceVals...>) noexcept
 {
   using Uint = decltype(crc);
   static constexpr int W = sizeof(*buf);
@@ -196,52 +207,74 @@ auto DoSliceImpl(auto crc, const auto* buf, std::size_t len,
 } // DoSliceImpl
 
 template<std::unsigned_integral auto Poly, Endian Dir>
-auto DoSlice(auto crc, const auto* buf, std::size_t len) noexcept {
+constexpr auto DoSlice(auto crc, const auto* buf, std::size_t len) noexcept {
   using Seq = std::make_index_sequence<sizeof(*buf)>;
   return DoSliceImpl<Poly, Dir>(crc, buf, len, Seq{});
 }
 
 // Poly must already be reflected for LsbFirst.
-template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices = 1>
-requires (Slices > 0)
-inline auto Compute(std::unsigned_integral auto crc, std::byte b) noexcept
-{ return DoSlice<Poly, Dir>(crc, std::to_integer<std::uint8_t>(b)); }
+template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices>
+constexpr auto Compute(std::unsigned_integral auto crc, std::byte b) noexcept
+  -> decltype(crc);
 
 // Poly must already be reflected for LsbFirst.
-template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices = 1>
-requires (Slices == 0)
-inline auto Compute(std::unsigned_integral auto crc, std::byte b) noexcept
-{ return Update<Poly, Dir>(crc, b); }
-
-// Poly must already be reflected for LsbFirst.
-template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices = 8>
-inline auto Compute(std::unsigned_integral auto crc,
+template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices>
+constexpr auto Compute(std::unsigned_integral auto crc,
                        std::span<const std::byte> buf) noexcept
   -> decltype(crc);
 
 template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices>
-requires (Slices==1 || Slices==2 || Slices==4 || Slices==8)
-inline auto Compute(std::unsigned_integral auto crc,
+requires (Slices > 0)
+constexpr auto Compute(std::unsigned_integral auto crc, std::byte b) noexcept
+{ return DoSlice<Poly, Dir>(crc, std::to_integer<std::uint8_t>(b)); }
+
+template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices>
+requires (Slices == 0)
+constexpr auto Compute(std::unsigned_integral auto crc, std::byte b) noexcept
+{ return Update<Poly, Dir>(crc, b); }
+
+template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices>
+requires (Slices == 0)
+constexpr auto Compute(std::unsigned_integral auto crc,
                        std::span<const std::byte> buf) noexcept
 {
-  static_assert(sizeof(Poly) <= sizeof(crc));
+  for (auto b: buf)
+    crc = Update<Poly, Dir>(crc, b);
+  return crc;
+} // Compute
+
+template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices>
+requires (Slices == 1)
+constexpr auto Compute(std::unsigned_integral auto crc,
+                        std::span<const std::byte> buf) noexcept
+{
+  auto p  = reinterpret_cast<const std::uint8_t*>(buf.data());
+  return DoSlice<Poly, Dir>(crc, p, buf.size());
+} // Compute
+
+template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices>
+requires (Slices==2 || Slices==4 || Slices==8)
+constexpr auto Compute(std::unsigned_integral auto crc,
+                       std::span<const std::byte> buf) noexcept
+{
   using Uint = decltype(crc);
   using Word = uint_t<8 * Slices>::least;
   auto p  = reinterpret_cast<const std::uint8_t*>(buf.data());
   auto sz = buf.size();
-  if constexpr (Slices > 1) {
-     auto num = static_cast<std::size_t>(
-                                 reinterpret_cast<std::uintptr_t>(p) % Slices);
-    if (num != 0) {
-      num = Slices - num;
-      crc = DoSlice<Poly, Dir>(crc, p, num);
-      p  += num;
-      sz -= num;
-    }
+  // Process non-slice-aligned initial bytes.
+  auto num = static_cast<std::size_t>(
+                                  reinterpret_cast<std::uintptr_t>(p) % Slices);
+  if (num != 0) {
+    num = Slices - num;
+    crc = DoSlice<Poly, Dir>(crc, p, num);
+    p  += num;
+    sz -= num;
   }
+  // Process slice-aligned bytes.
   auto p2  = reinterpret_cast<const Word*>(p);
   auto sz2 = sz / sizeof(Word);
   crc = DoSlice<Poly, Dir>(crc, p2, sz2);
+  // Process non-slice-aligned trailing bytes.
   sz2 *= sizeof(Word);
   sz -= sz2;
   if (sz > 0) {
@@ -251,24 +284,12 @@ inline auto Compute(std::unsigned_integral auto crc,
   return crc;
 } // Compute
 
-template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices>
-requires (Slices == 0)
-inline auto Compute(std::unsigned_integral auto crc,
-                       std::span<const std::byte> buf) noexcept
-{
-  static_assert(sizeof(Poly) <= sizeof(crc));
-  for (auto b: buf)
-    crc = Update<Poly, Dir>(crc, b);
-  return crc;
-} // Compute
-
-#undef TJG_IS_LITTLE_ENDIAN
-
 } // detail
 
 template<std::size_t Bits_, uint_t<Bits_>::least Poly_, Endian Dir_,
-         std::size_t Slices_ = 8>
-requires (Bits_ >= 3 && Bits_ <= 64)
+         std::size_t Slices_ = 1>
+requires ((Bits_ >= 3 && Bits_ <= 64)
+      && (Slices_==0 || Slices_==1 || Slices_==2 || Slices_==4 || Slices_==8))
 class Crc {
 public:
   static constexpr auto   Bits = Bits_;
@@ -280,7 +301,7 @@ public:
 
 protected:
   static constexpr auto CrcBits = 8 * sizeof(value_type);
-  static constexpr std::uint8_t Shift = CrcBits - Bits;
+  static constexpr unsigned Shift = CrcBits - Bits;
 
 private:
   static constexpr value_type FastPoly = (Dir == Endian::MsbFirst)
@@ -301,7 +322,8 @@ private:
 public:
   constexpr void reset() noexcept { _crc = _init; }
 
-  [[nodiscard]] constexpr value_type value() const noexcept {
+  [[nodiscard]]
+  constexpr value_type value() const noexcept {
     if constexpr (Dir == Endian::MsbFirst)
       return (_crc >> Shift) ^ _xor;
     else
@@ -317,11 +339,13 @@ public:
   constexpr void update(std::span<const std::byte> buf) noexcept
     { _crc = detail::Compute<FastPoly, Dir, Slices>(_crc, buf); }
 
-  [[nodiscard]] operator value_type() const { return value(); }
+  [[nodiscard]]
+  constexpr operator value_type() const noexcept { return value(); }
 
-  Crc& operator()(std::span<const std::byte> buf) { update(buf); return *this; }
+  constexpr Crc& operator()(std::span<const std::byte> buf) noexcept
+    { update(buf); return *this; }
 
-  Crc& operator()(std::byte b) { update(b); return *this; }
+  constexpr Crc& operator()(std::byte b) noexcept { update(b); return *this; }
 }; // Crc
 
 } // tjg::crc
