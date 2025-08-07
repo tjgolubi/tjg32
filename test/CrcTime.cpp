@@ -1,7 +1,6 @@
-#include "CrcEngine.h"
 #include "CrcKnown.h"
-#include "CrcTraits.h"
-#include "SaveIo.h"
+
+#include "../tjg/SaveIo.h"
 
 #include <chrono>
 #include <vector>
@@ -19,6 +18,9 @@
 
 using Clock = std::chrono::high_resolution_clock;
 
+constexpr std::size_t DataSize = (1 << 20);
+constexpr int LoopCount = 10;
+
 template<std::unsigned_integral U>
 struct CoutType: public std::conditional<(sizeof(U) == 1), unsigned, U> { };
 
@@ -31,27 +33,26 @@ struct TimedCrc {
   Clock::duration elapsed  = Clock::duration{};
 }; // TimedCrc
 
-namespace detail {
-
 template<class CrcTraits, bool Bytes, std::size_t SliceVal>
 auto RunCrcTestVariant(std::span<const std::byte> data) {
   std::cerr << ' ' << SliceVal << std::flush;
 
+  using Crc = tjg::crc::Known<CrcTraits, SliceVal>;
   auto start = Clock::now();
-  tjg::CrcKnown<CrcTraits, SliceVal> crc;
-  if constexpr (Bytes) {
-    for (auto b: data)
-      crc.update(b);
-  } else {
-    crc.update(data);
+  Crc crc;
+  for (int i = 0; i != LoopCount; ++i) {
+    if constexpr (Bytes) {
+      for (auto b: data)
+        crc(b);
+    } else {
+      crc(data);
+    }
   }
-  auto result = crc.value();
+  auto result = crc;
   auto stop = Clock::now();
 
   return TimedCrc{result, stop - start};
 } // RunCrcTestVariant
-
-} // detail
 
 template<class CrcTraits, bool Bytes, std::size_t... SliceVals>
 auto RunSlices(std::span<const std::byte> data) {
@@ -63,7 +64,7 @@ auto RunSlices(std::span<const std::byte> data) {
   results.reserve(sizeof...(SliceVals));
 
   (results.emplace_back(
-     detail::RunCrcTestVariant<CrcTraits, Bytes, SliceVals>(data)), ...);
+                    RunCrcTestVariant<CrcTraits, Bytes, SliceVals>(data)), ...);
 
   std::cerr << std::endl;
   return results;
@@ -95,7 +96,8 @@ bool TestCrcTraits(std::span<const std::byte> data) {
            << right << dec << setfill(' ') << fixed << setprecision(1);
       for (const auto& result: rv) {
         auto s = std::chrono::duration<double>(result.elapsed);
-        auto rate = static_cast<double>(data.size()) / (1 << 20) / s.count();
+        auto rate = static_cast<double>(data.size() * LoopCount)
+                  / (1 << 20) / s.count();
         cout << setw(8) << rate;
       }
       for (const auto& result: rv) {
@@ -109,7 +111,8 @@ bool TestCrcTraits(std::span<const std::byte> data) {
     cout << '\n' << left << setw(20) << "Average (MiB/s):" << right;
     for (auto elapsed: sums) {
       auto s = std::chrono::duration<double>(elapsed) / results.size();
-      auto rate = static_cast<double>(data.size()) / (1 << 20) / s.count();
+      auto rate = static_cast<double>(data.size() * LoopCount)
+                / (1 << 20) / s.count();
       cout << setw(8) << rate;
     }
     cout << endl;
@@ -131,41 +134,54 @@ int main() {
   std::vector<std::byte> data;
   {
     rng.seed(Seed);
-    constexpr std::size_t Size = 10 << 20;  // 10 MiB
-    data.reserve(Size);
-    for (int i = 0; i != Size; ++i)
+    data.reserve(DataSize);
+    for (int i = 0; i != DataSize; ++i)
       data.push_back(static_cast<std::byte>(rng() & 0xff));
   }
   std::cerr << "done." << std::endl;
 
   using CrcSets =
-    meta::TypeList<tjg::KnownAbnormalCrcs,
-                   tjg::Known8BitCrcs,  tjg::Known16BitCrcs,
-                   tjg::Known32BitCrcs, tjg::Known64BitCrcs>;
+    meta::TypeList<tjg::crc::KnownAbnormalCrcs,
+                   tjg::crc::Known8BitCrcs,  tjg::crc::Known16BitCrcs,
+                   tjg::crc::Known32BitCrcs, tjg::crc::Known64BitCrcs>;
 
   using Slices = std::index_sequence<0, 1, 2, 4, 8>;
 
+  std::cout << "\n"
+"----------------------------- Large Buffer Tests -----------------------------"
+  "\n";
+
+  int failed = 0;
   meta::ForEachType<CrcSets>([&]<class CrcTraitsList>() {
     std::cout << "\nLSB Tests\n";
     using LsbCrcs =
-                  meta::FilterT<tjg::IsLsbFirst::template apply, CrcTraitsList>;
-    (void) TestCrcTraits<LsbCrcs, false>(data, Slices{});
+            meta::FilterT<tjg::crc::IsLsbFirst::template apply, CrcTraitsList>;
+    failed += !TestCrcTraits<LsbCrcs, false>(data, Slices{});
     std::cout << "\nMSB Tests\n";
     using MsbCrcs =
-                  meta::FilterT<tjg::IsMsbFirst::template apply, CrcTraitsList>;
-    (void) TestCrcTraits<MsbCrcs, false>(data, Slices{});
+            meta::FilterT<tjg::crc::IsMsbFirst::template apply, CrcTraitsList>;
+    failed += !TestCrcTraits<MsbCrcs, false>(data, Slices{});
   });
+
+  std::cout << "\n"
+"----------------------------- Byte-by-Byte Tests -----------------------------"
+  "\n";
 
   meta::ForEachType<CrcSets>([&]<class CrcTraitsList>() {
     std::cout << "\nLSB Tests\n";
     using LsbCrcs =
-                  meta::FilterT<tjg::IsLsbFirst::template apply, CrcTraitsList>;
-    (void) TestCrcTraits<LsbCrcs, true>(data, Slices{});
+            meta::FilterT<tjg::crc::IsLsbFirst::template apply, CrcTraitsList>;
+    failed += !TestCrcTraits<LsbCrcs, true>(data, Slices{});
     std::cout << "\nMSB Tests\n";
     using MsbCrcs =
-                  meta::FilterT<tjg::IsMsbFirst::template apply, CrcTraitsList>;
-    (void) TestCrcTraits<MsbCrcs, true>(data, Slices{});
+            meta::FilterT<tjg::crc::IsMsbFirst::template apply, CrcTraitsList>;
+    failed += !TestCrcTraits<MsbCrcs, true>(data, Slices{});
   });
+
+  if (failed != 0) {
+    std::cout << "\nFailed " << failed << " tests.\n";
+    return EXIT_FAILURE;
+  }
 
   return EXIT_SUCCESS;
 } // main

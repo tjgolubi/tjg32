@@ -1,7 +1,6 @@
-#include "CrcEngine.h"
 #include "CrcKnown.h"
-#include "CrcTraits.h"
-#include "SaveIo.h"
+
+#include "../tjg/SaveIo.h"
 
 #include <iostream>
 #include <iomanip>
@@ -28,7 +27,7 @@ template<class CrcTraits>
 bool Test() {
   using namespace std;
   auto saveIo = tjg::SaveIo{cout};
-  using Crc = tjg::CrcKnown<CrcTraits>;
+  using Crc = tjg::crc::Known<CrcTraits>;
   cout << "Testing " << Crc::Name;
   Crc crc;
   crc.update(TestBuf);
@@ -38,12 +37,12 @@ bool Test() {
   }
 
   tjg::SetHex(cout);
-  int width = 2 * sizeof(typename Crc::CrcType);
+  int width = 2 * sizeof(typename Crc::value_type);
   cout << "\nReturned value is not as expected."
     << "\nBits         =   " << dec << Crc::Bits << hex
     << "\nPoly         = 0x" << setw(width) << Value(Crc::Poly)
     << "\nDir          =   "
-    << ((Crc::Dir == tjg::CrcDir::LsbFirst) ? "LSB" : "MSB")
+    << ((Crc::Dir == tjg::crc::Endian::LsbFirst) ? "LSB" : "MSB")
     << "\nCheck        = 0x" << setw(width) << Value(Crc::Check)
     << "\nCrc          = 0x" << setw(width) << Value(crc.value())
     << "\nReflect(Crc) = 0x" << setw(width) << Value(tjg::Reflect(crc.value()))
@@ -54,7 +53,7 @@ bool Test() {
 int main() {
   int failCount = 0;
 
-  using Crcs = tjg::KnownCrcs;
+  using Crcs = tjg::crc::KnownCrcs;
 
   meta::ForEachType<Crcs>([&]<typename CrcTraits>() {
     if (!Test<CrcTraits>())
