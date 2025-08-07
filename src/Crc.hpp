@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../tjg/Integer.h"
-#include "../tjg/Reflect.h"
+#include "../tjg/Integer.hpp"
+#include "../tjg/Reflect.hpp"
 
 #include <array>
 #include <span>

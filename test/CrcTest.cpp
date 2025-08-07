@@ -1,6 +1,6 @@
-#include "CrcKnown.h"
+#include "CrcKnown.hpp"
 
-#include "../tjg/SaveIo.h"
+#include "../tjg/SaveIo.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -53,7 +53,7 @@ bool Test() {
 int main() {
   int failCount = 0;
 
-  using Crcs = tjg::crc::KnownCrcs;
+  using Crcs = tjg::crc::test_detail::KnownCrcs;
 
   meta::ForEachType<Crcs>([&]<typename CrcTraits>() {
     if (!Test<CrcTraits>())
