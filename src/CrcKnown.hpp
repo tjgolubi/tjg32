@@ -1,16 +1,16 @@
 #pragma once
 
-#include "Crc.h"
+#include "Crc.hpp"
 
-#include "../tjg/Integer.h"
-#include "../tjg/meta.h"
+#include "../tjg/Integer.hpp"
+#include "../tjg/meta.hpp"
 
 #include <concepts>
 #include <utility>
 
 namespace tjg::crc {
 
-template<class Traits_, std::size_t Slices_ = 8>
+template<class Traits_, std::size_t Slices_ = 1>
 struct Known
   : public Crc<Traits_::Bits,
                Traits_::Poly,
@@ -29,9 +29,16 @@ struct Known
   static constexpr auto Name  = Traits::Name;
   static constexpr auto Check = Traits::Check;
 
+  /// Default constructor. Initial value and xor-output are specified by the
+  /// Traits_ class.
   constexpr Known() noexcept : Base{Traits::Init, Traits::XorOut} { }
 
-  [[nodiscard]] constexpr value_type value() const noexcept {
+  using Base::reset;
+  using Base::update;
+
+  /// Extends Crc::value() to reflect the output if ReflectIn != ReflectOut.
+  [[nodiscard]]
+  constexpr value_type value() const noexcept {
     if constexpr (Traits::ReflectIn == Traits::ReflectOut) {
       return Base::value();
     } else {
@@ -39,6 +46,13 @@ struct Known
       return Reflect(Base::value()) >> Shift;
     }
   }
+
+  constexpr operator value_type() const noexcept { return value(); }
+
+  Known& operator()(std::byte b) noexcept { update(b); return *this; }
+
+  Known& operator()(std::span<const std::byte> buf) noexcept
+    { update(buf); return *this; }
 
 }; // Known
 
@@ -1515,6 +1529,12 @@ struct Crc82Darc {
 }; // Crc82Darc
 #endif
 
+/// @internal
+namespace test_detail {
+/// Internal list of all predefined CRC traits;
+/// useful for testing and documentation purposes.
+///
+/// Complete list of all CRC traits contained in this file.
 using KnownCrcs = meta::TypeList<
   Crc3Gsm,
   Crc3Rohc,
@@ -1630,11 +1650,13 @@ using KnownCrcs = meta::TypeList<
   Crc64Xz
 >; // KnownCrcs
 
+/// Evaluates to `true` if Bits is not a "normal" multiple of 8.
 template<class T>
 struct IsAbnormal
   : std::bool_constant<T::Bits !=  8 && T::Bits != 16
                     && T::Bits != 32 && T::Bits != 64> { };
 
+/// CRCs with Bits that are not a multiple of 8.
 using KnownAbnormalCrcs = meta::FilterT<IsAbnormal, KnownCrcs>;
 
 template<std::size_t N>
@@ -1645,19 +1667,23 @@ struct IsBitsEqual {
 
 template<std::size_t N>
 using KnownNBitCrcs = meta::FilterT<IsBitsEqual<N>::template apply, KnownCrcs>;
-using Known8BitCrcs  = KnownNBitCrcs< 8>;
-using Known16BitCrcs = KnownNBitCrcs<16>;
-using Known32BitCrcs = KnownNBitCrcs<32>;
-using Known64BitCrcs = KnownNBitCrcs<64>;
+using Known8BitCrcs  = KnownNBitCrcs< 8>; /// 8-bit CRCs
+using Known16BitCrcs = KnownNBitCrcs<16>; /// 16-bit CRCs
+using Known32BitCrcs = KnownNBitCrcs<32>; /// 32-bit CRCs
+using Known64BitCrcs = KnownNBitCrcs<64>; /// 64-bit CRCs
 
+/// Evaluates to `true` if bits are processed least-significant-first.
 struct IsLsbFirst {
   template<class T>
   using apply = std::bool_constant<T::ReflectIn>;
 };
 
+/// Evaluates to `true` if bits are processed most-significant-first.
 struct IsMsbFirst {
   template<class T>
   using apply = std::bool_constant<!T::ReflectIn>;
 };
+
+} // test_detail
 
 } // tjg::crc

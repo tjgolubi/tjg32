@@ -1,6 +1,6 @@
-#include "CrcKnown.h"
+#include "CrcKnown.hpp"
 
-#include "../tjg/SaveIo.h"
+#include "../tjg/SaveIo.hpp"
 
 #include <chrono>
 #include <vector>
@@ -140,10 +140,12 @@ int main() {
   }
   std::cerr << "done." << std::endl;
 
+  using namespace tjg::crc::test_detail;
+
   using CrcSets =
-    meta::TypeList<tjg::crc::KnownAbnormalCrcs,
-                   tjg::crc::Known8BitCrcs,  tjg::crc::Known16BitCrcs,
-                   tjg::crc::Known32BitCrcs, tjg::crc::Known64BitCrcs>;
+    meta::TypeList<KnownAbnormalCrcs,
+                   Known8BitCrcs,  Known16BitCrcs,
+                   Known32BitCrcs, Known64BitCrcs>;
 
   using Slices = std::index_sequence<0, 1, 2, 4, 8>;
 
@@ -155,11 +157,11 @@ int main() {
   meta::ForEachType<CrcSets>([&]<class CrcTraitsList>() {
     std::cout << "\nLSB Tests\n";
     using LsbCrcs =
-            meta::FilterT<tjg::crc::IsLsbFirst::template apply, CrcTraitsList>;
+            meta::FilterT<IsLsbFirst::template apply, CrcTraitsList>;
     failed += !TestCrcTraits<LsbCrcs, false>(data, Slices{});
     std::cout << "\nMSB Tests\n";
     using MsbCrcs =
-            meta::FilterT<tjg::crc::IsMsbFirst::template apply, CrcTraitsList>;
+            meta::FilterT<IsMsbFirst::template apply, CrcTraitsList>;
     failed += !TestCrcTraits<MsbCrcs, false>(data, Slices{});
   });
 
@@ -170,11 +172,11 @@ int main() {
   meta::ForEachType<CrcSets>([&]<class CrcTraitsList>() {
     std::cout << "\nLSB Tests\n";
     using LsbCrcs =
-            meta::FilterT<tjg::crc::IsLsbFirst::template apply, CrcTraitsList>;
+            meta::FilterT<IsLsbFirst::template apply, CrcTraitsList>;
     failed += !TestCrcTraits<LsbCrcs, true>(data, Slices{});
     std::cout << "\nMSB Tests\n";
     using MsbCrcs =
-            meta::FilterT<tjg::crc::IsMsbFirst::template apply, CrcTraitsList>;
+            meta::FilterT<IsMsbFirst::template apply, CrcTraitsList>;
     failed += !TestCrcTraits<MsbCrcs, true>(data, Slices{});
   });
 

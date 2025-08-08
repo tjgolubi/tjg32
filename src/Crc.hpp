@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../tjg/Integer.h"
-#include "../tjg/Reflect.h"
+#include "../tjg/Integer.hpp"
+#include "../tjg/Reflect.hpp"
 
 #include <array>
 #include <span>
@@ -330,7 +330,7 @@ public:
       return _crc ^ _xor;
   }
 
-  constexpr Crc(value_type init_, value_type xor_) noexcept
+  constexpr explicit Crc(value_type init_, value_type xor_=0) noexcept
     : _init{Init(init_)} , _xor{xor_} , _crc{_init} { }
 
   constexpr void update(std::byte b) noexcept
@@ -339,7 +339,6 @@ public:
   constexpr void update(std::span<const std::byte> buf) noexcept
     { _crc = detail::Compute<FastPoly, Dir, Slices>(_crc, buf); }
 
-  [[nodiscard]]
   constexpr operator value_type() const noexcept { return value(); }
 
   constexpr Crc& operator()(std::span<const std::byte> buf) noexcept
