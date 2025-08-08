@@ -1,3 +1,117 @@
+/// @file
+/// @copyright 2025 Terry Golubiewski, all rights reserved.
+/// @author Terry Golubiewski
+///
+/// Defines known CRC trait classes for use with the included `Known`
+/// wrapper.
+///
+/// Includes most published and widely-used CRC variants.
+///
+/// These traits are not meant to be defined or extended by the user.
+/// If a nonstandard CRC is required, use the `tjg::crc::Crc` class directly.
+///
+/// Each trait specifies static parameters for:
+///   - CRC width (Bits)
+///   - Polynomial (Poly)
+///   - Input direction (Dir)
+///   - Initial and final XOR values (Init, XorOut)
+///
+/// These CRC specifications were taken from
+/// [CRC RevEng)(https://reveng.sourceforge.io/crc-catalogue/all.htm).
+///
+/// ### Choosing a CRC
+///
+/// In most cases, the CRC algorithm is dictated by the protocol or
+/// application you're working with.  In that case, you must match the
+/// specification exactly.
+///
+/// If you're designing a new system, it's best to choose a common CRC
+/// that has been used in similar contexts. This reduces confusion and
+/// improves interoperability.
+///
+/// - The **bit-length** of the CRC determines how confidently you can
+///   detect errors.
+/// - The **polynomial** determines the kinds or patterns of errors
+///   the CRC is good at detecting — but this is not something most
+///   developers (or even experts) need to reason about directly
+/// - The **MSB vs. LSB** direction should always match the bit order
+///   in which the data is serialized or transmitted.
+///
+/// MSB-first CRCs are more common in documentation because they're
+/// easier to explain mathematically, but that doesn't mean they are
+/// better or faster. Use an LSB-first CRC if the system transmits
+/// bytes LSB-first (e.g. USB, 1-Wire, Modbus), and MSB-first otherwise.
+///
+/// ### Selecting the `Slices_` Parameter
+///
+/// When instantiating a `Crc` or `Known<CrcTraits>` type, the `Slices_`
+/// template parameter determines how many lookup tables are generated at
+/// compile-time to accelerate CRC computation
+///
+/// Valid values are:
+/// - `0` — disables all lookup tables; uses bitwise/shift-based algorithm
+/// - `1` — uses a single 256-entry table (basic table-based CRC)
+/// - `2`, `4`, or `8` — enables slicing-by-N for higher performance
+///
+/// More slices improve throughput on large inputs but increase code size;
+/// `Slices_ == 1` is a good default for typical applications
+///
+/// better or faster; use an LSB-first CRC if the system transmits
+/// bytes LSB-first (e.g. USB, 1-Wire, Modbus), and MSB-first otherwise
+///
+/// ### Recommended CRCs
+///
+/// These CRCs are widely used and suitable for most applications:
+///
+/// - **Crc8MaximDow** — 1-Wire sensors
+/// - **Crc8Autosar** — Automotive systems
+/// - **Crc16Ccitt** — Telecom, X.25, HDLC
+/// - **Crc16Modbus** — Industrial control
+/// - **Crc32IsoH** — Ethernet, GZIP, ZIP, PNG
+/// - **Crc32Castagnoli** — iSCSI, SSE4.2 hardware
+///
+///
+/// ### MSB-first CRCs with width < 8 bits
+///
+/// Crc3Gsm, Crc4Interlaken, Crc5EpcC1g2, Crc6Cdma2000A, Crc6Cdma2000B, Crc6Gsm,
+/// Crc7Mmc, Crc7Umts
+
+/// ### LSB-first CRCs with width < 8 bits
+///
+/// Crc3Rohc, Crc4G704, Crc5G704, Crc5Usb, Crc6Darc, Crc6G704, Crc7Rohc
+
+/// ### MSB-first CRCs with width == 8 bits
+///
+/// Crc8Autosar, Crc8Cdma2000, Crc8DvbS2, Crc8GsmA, Crc8GsmB, Crc8Hitag,
+/// Crc8I4321, Crc8ICode, Crc8Lte, Crc8MifareMad, Crc8Nrsc5, Crc8Opensafety,
+/// Crc8SaeJ1850, Crc8Smbus
+///
+/// ### LSB-first CRCs with width == 8 bits
+///
+/// Crc8Bluetooth, Crc8Darc, **Crc8MaximDow**, Crc8Rohc, Crc8Tech3250, Crc8Wcdma
+///
+/// ### MSB-first CRCs with width > 8 and < 16 bits
+///
+/// Crc10Atm, Crc10Cdma2000, Crc10Gsm, Crc11Flexray, Crc11Umts, Crc12Cdma2000,
+/// Crc12Dect, Crc12Gsm, Crc12Umts, Crc13Bbc, Crc14Gsm, Crc15Can, Crc15Mpt1327
+///
+/// ### LSB-first CRCs with width > 8 and < 16 bits
+///
+/// Crc14Darc
+///
+/// ### MSB-first CRCs with width == 16 bits
+///
+/// Crc16Cdma2000, Crc16Cms, Crc16Dds110, Crc16DectR, Crc16DectX, Crc16En13757,
+/// Crc16Genibus, Crc16Gsm, Crc16Ibm3740, Crc16Lj1200, Crc16M17,
+/// Crc16OpensafetyA, Crc16OpensafetyB, Crc16Profibus, Crc16SpiFujitsu,
+/// Crc16T10Dif, Crc16Teledisk, Crc16Umts, Crc16Xmodem
+///
+/// ### LSB-first CRCs with width == 16 bits
+///
+/// Crc16Arc, Crc16Dnp, Crc16IbmSdlc, Crc16IsoIec144433A, Crc16Kermit,
+/// Crc16MaximDow, Crc16Mcrf4xx, Crc16Modbus, Crc16Nrsc5, Crc16Riello,
+/// Crc16Tms37157, Crc16Usb
+
 #pragma once
 
 #include "Crc.hpp"
@@ -10,6 +124,21 @@
 
 namespace tjg::crc {
 
+/// Wraps a CRC traits struct for convenient instantiation and runtime use.
+///
+/// Derives from the fully parameterized `Crc` engine using traits-provided
+/// parameters.
+///
+/// This class is intended for use with predefined trait types such as
+/// `Crc16Ccitt` or `Crc32IsoH`; it extracts all relevant parameters from
+/// the given `Traits_` type and provides a complete CRC implementation
+///
+/// @tparam Traits_   A CRC trait class with required static members:
+///                   Bits, Poly, ReflectIn, ReflectOut, Init, XorOut, Check
+/// @tparam Slices_   Number of table slices to use for optimization;
+///                   default is 1 look-up table.
+///
+/// @see Crc
 template<class Traits_, std::size_t Slices_ = 1>
 struct Known
   : public Crc<Traits_::Bits,
