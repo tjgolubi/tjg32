@@ -6,7 +6,7 @@ export PROJDIR := $(abspath ..)
 include $(SWDEV)/project.mk
 
 TJG:=$(PROJDIR)/tjg
-CRC:=$(PROJDIR)/src
+CRC:=$(PROJDIR)/crc
 
 # Must use "=" instead of ":=" because $E will be defined below.
 CRC_TEST_E=CrcTest.$E
@@ -20,7 +20,7 @@ SRC2:=CrcTime.cpp
 SOURCE:=$(SRC1) $(SRC2)
 
 SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
-INCLUDE:=$(PROJDIR)/src
+INCLUDE:=$(PROJDIR)
 
 # Must use "=" because LIBS will be changed below.
 LIBS=

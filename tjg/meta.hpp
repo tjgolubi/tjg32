@@ -1,6 +1,7 @@
 /// @file
 /// @copyright 2025 Terry Golubiewski, all rights reserved.
 /// @author Terry Golubiewski
+/// Meta-programming Type Lists.
 
 #pragma once
 

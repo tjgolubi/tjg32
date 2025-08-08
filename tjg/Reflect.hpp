@@ -1,3 +1,8 @@
+/// @file
+/// @copyright 2025 Terry Golubiewski, all rights reserved.
+/// @author Terry Golubiewski
+/// Reflect (reverse) bits in an integer.
+
 #pragma once
 
 #include <array>
@@ -7,8 +12,10 @@
 
 namespace tjg {
 
+/// @internal
 namespace detail {
 
+/// Reflect 8-bits within one byte at compile-time.
 consteval std::uint8_t Reflect8(std::uint8_t in) {
   auto i = 8 - 1;
   std::uint8_t out = (in & 1);
@@ -19,6 +26,7 @@ consteval std::uint8_t Reflect8(std::uint8_t in) {
   return out;
 } // Reflect8
 
+/// Generate table of reflected bits/byte at compile-time.
 consteval std::array<std::uint8_t, 256> GenerateReflectTable() {
   std::array<std::uint8_t, 256> table{};
   for (unsigned i = 0; i != 256; ++i)
@@ -28,6 +36,7 @@ consteval std::array<std::uint8_t, 256> GenerateReflectTable() {
 
 } // detail
 
+/// Reflect bits within an 8-bit integer.
 template<std::integral T>
 requires (sizeof(T) == 1)
 constexpr T Reflect(T x) noexcept {
@@ -36,9 +45,11 @@ constexpr T Reflect(T x) noexcept {
   return static_cast<T>(Table[static_cast<std::uint8_t>(x)]);
 }
 
+/// Reflect bits within a std::byte.
 constexpr std::byte Reflect(std::byte x) noexcept
   { return std::byte{Reflect(std::to_integer<std::uint8_t>(x))}; }
 
+/// Reflect bits within an integer.
 template<std::integral T>
 requires (sizeof(T) > 1)
 constexpr T Reflect(T in) noexcept {

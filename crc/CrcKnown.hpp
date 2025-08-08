@@ -1,16 +1,16 @@
 #pragma once
 
-#include "Crc.hpp"
+#include "crc/Crc.hpp"
 
-#include "../tjg/Integer.hpp"
-#include "../tjg/meta.hpp"
+#include "tjg/Integer.hpp"
+#include "tjg/meta.hpp"
 
 #include <concepts>
 #include <utility>
 
 namespace tjg::crc {
 
-template<class Traits_, std::size_t Slices_ = 1>
+template<class Traits_, std::size_t Slices_ = DefaultSlices>
 struct Known
   : public Crc<Traits_::Bits,
                Traits_::Poly,
@@ -1536,6 +1536,11 @@ using Crc8  = Known<Crc8Smbus>;
 using Crc16 = Known<Crc16Arc>;
 using Crc32 = Known<Crc32IsoHdlc>;
 using Crc64 = Known<Crc64Ecma182>;
+
+using FastCrc8  = Known<Crc8Smbus,    MaxSlices>;
+using FastCrc16 = Known<Crc16Arc,     MaxSlices>;
+using FastCrc32 = Known<Crc32IsoHdlc, MaxSlices>;
+using FastCrc64 = Known<Crc64Ecma182, MaxSlices>;
 
 /// @internal
 namespace test_detail {

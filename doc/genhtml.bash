@@ -1,4 +1,3 @@
 set -x
-doc="LsbTestReport"
+doc="Manual"
 pandoc "$doc.md" -o "$doc.html" --standalone --css=CrcReportStyle.css
-#pandoc "$doc.md" -o "$doc.html" --standalone

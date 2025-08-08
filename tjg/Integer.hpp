@@ -1,7 +1,8 @@
 /// @file
-/// Provides uint_t<int Bits>.
 /// @copyright 2025 Terry Golubiewski, all rights reserved.
 /// @author Terry Golubiewski
+/// Provides uint_t<int Bits>.
+
 #pragma once
 
 #include <cstdint>

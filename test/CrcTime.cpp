@@ -1,6 +1,7 @@
-#include "CrcKnown.hpp"
+#include "crc/CrcKnown.hpp"
 
-#include "../tjg/SaveIo.hpp"
+#include "tjg/SaveIo.hpp"
+#include "tjg/meta.hpp"
 
 #include <chrono>
 #include <vector>
@@ -207,8 +208,8 @@ int main() {
 
   {
     using namespace tjg::crc;
-    using DefactoCrcs =
-      meta::TypeList<Crc8::Traits, Crc16::Traits, Crc32::Traits, Crc64::Traits>;
+    using DefactoCrcs = meta::TypeList<Crc8::Traits,  Crc16::Traits,
+                                       Crc32::Traits, Crc64::Traits>;
     failed += !TestCrcTraits<DefactoCrcs>(data, Slices{});
   }
 

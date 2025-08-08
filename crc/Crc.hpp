@@ -1,13 +1,12 @@
 #pragma once
 
-#include "../tjg/Integer.hpp"
-#include "../tjg/Reflect.hpp"
+#include "tjg/Integer.hpp"
+#include "tjg/Reflect.hpp"
 
 #include <array>
 #include <span>
 #include <concepts>
 #include <type_traits>
-#include <cstddef>
 #include <utility>
 #include <bit>
 #include <cstdint>
@@ -16,6 +15,9 @@
 namespace tjg::crc {
 
 enum class Endian { LsbFirst, MsbFirst };
+
+constexpr std::size_t DefaultSlices = 1;
+constexpr std::size_t MaxSlices = 8;
 
 namespace detail {
 
@@ -316,7 +318,7 @@ constexpr auto Compute(std::unsigned_integral auto crc,
 } // detail
 
 template<std::size_t Bits_, uint_t<Bits_>::least Poly_, Endian Dir_,
-         std::size_t Slices_ = 1>
+         std::size_t Slices_ = DefaultSlices>
 requires ((Bits_ >= 3 && Bits_ <= 64)
       && (Slices_==0 || Slices_==1 || Slices_==2 || Slices_==4 || Slices_==8))
 class Crc {

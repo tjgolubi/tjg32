@@ -1,6 +1,6 @@
-#include "CrcKnown.hpp"
+#include "crc/CrcKnown.hpp"
 
-#include "../tjg/SaveIo.hpp"
+#include "tjg/SaveIo.hpp"
 
 #include <iostream>
 #include <iomanip>
