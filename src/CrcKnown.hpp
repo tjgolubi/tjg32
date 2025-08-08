@@ -49,6 +49,8 @@ struct Known
 
   constexpr operator value_type() const noexcept { return value(); }
 
+  Known& operator()(bool bit) noexcept { update(bit); return *this; }
+
   Known& operator()(std::byte b) noexcept { update(b); return *this; }
 
   Known& operator()(std::span<const std::byte> buf) noexcept
@@ -1528,6 +1530,12 @@ struct Crc82Darc {
   static constexpr value_type Residue = 0x000000000000000000000;
 }; // Crc82Darc
 #endif
+
+/// De-facto CRCs
+using Crc8  = Known<Crc8Smbus>;
+using Crc16 = Known<Crc16Arc>;
+using Crc32 = Known<Crc32IsoHdlc>;
+using Crc64 = Known<Crc64Ecma182>;
 
 /// @internal
 namespace test_detail {

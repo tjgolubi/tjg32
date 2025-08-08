@@ -44,13 +44,36 @@ constexpr auto LsbMask(std::unsigned_integral auto x) noexcept
   return -(x & 1);
 } // LsbMask
 
+// Poly must already be reflected.
+template<std::unsigned_integral auto Poly, Endian Dir>
+requires (Dir == Endian::MsbFirst)
+constexpr auto Update(std::unsigned_integral auto crc, bool in) noexcept
+  -> decltype(crc)
+{
+  using Uint = decltype(crc);
+  crc ^= static_cast<Uint>(in) << (8 * sizeof(Uint)-1);
+  return (crc << 1) ^ (MsbMask(crc) & Poly);
+} // Update MsbFirst
+
+// Poly must already be reflected.
+template<std::unsigned_integral auto Poly, Endian Dir>
+requires (Dir == Endian::LsbFirst)
+constexpr auto Update(std::unsigned_integral auto crc, bool in) noexcept
+  -> decltype(crc)
+{
+  using Uint = decltype(crc);
+  crc ^= static_cast<Uint>(in);
+  return (crc >> 1) ^ (LsbMask(crc) & Poly);
+} // Update LsbFirst
+
+// Poly must already be reflected.
 template<std::unsigned_integral auto Poly, Endian Dir>
 requires (Dir == Endian::MsbFirst)
 constexpr auto Update(std::unsigned_integral auto crc, std::byte in) noexcept
   -> decltype(crc)
 {
   using Uint = decltype(crc);
-  crc ^= std::to_integer<Uint>(in) << 8 * (sizeof(Uint)-1);
+  crc ^= std::to_integer<Uint>(in) << (8 * (sizeof(Uint)-1));
   for (int i = 0; i != 8; ++i)
     crc = (crc << 1) ^ (MsbMask(crc) & Poly);
   return crc;
@@ -213,6 +236,12 @@ constexpr auto DoSlice(auto crc, const auto* buf, std::size_t len) noexcept {
 }
 
 // Poly must already be reflected for LsbFirst.
+template<std::unsigned_integral auto Poly, Endian Dir>
+constexpr auto Compute(std::unsigned_integral auto crc, bool bit) noexcept
+  -> decltype(crc)
+{ return Update<Poly, Dir>(crc, bit); }
+
+// Poly must already be reflected for LsbFirst.
 template<std::unsigned_integral auto Poly, Endian Dir, std::size_t Slices>
 constexpr auto Compute(std::unsigned_integral auto crc, std::byte b) noexcept
   -> decltype(crc);
@@ -305,8 +334,8 @@ protected:
 
 private:
   static constexpr value_type FastPoly = (Dir == Endian::MsbFirst)
-                                    ? (Poly << Shift)
-                                    : (Reflect(Poly) >> Shift);
+                                       ? (Poly << Shift)
+                                       : (Reflect(Poly) >> Shift);
 private:
   const value_type _init;
   const value_type _xor;
@@ -333,6 +362,9 @@ public:
   constexpr explicit Crc(value_type init_, value_type xor_=0) noexcept
     : _init{Init(init_)} , _xor{xor_} , _crc{_init} { }
 
+  constexpr void update(bool bit) noexcept
+    { _crc = detail::Compute<FastPoly, Dir>(_crc, bit); }
+
   constexpr void update(std::byte b) noexcept
     { _crc = detail::Compute<FastPoly, Dir, Slices>(_crc, b); }
 
@@ -345,6 +377,8 @@ public:
     { update(buf); return *this; }
 
   constexpr Crc& operator()(std::byte b) noexcept { update(b); return *this; }
+
+  constexpr Crc& operator()(bool bit) noexcept { update(bit); return *this; }
 }; // Crc
 
 } // tjg::crc
