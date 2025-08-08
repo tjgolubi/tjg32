@@ -196,12 +196,10 @@ int main() {
   int failed = 0;
   meta::ForEachType<CrcSets>([&]<class CrcTraitsList>() {
     std::cout << "\nLSB Tests\n";
-    using LsbCrcs =
-            meta::FilterT<IsLsbFirst::template apply, CrcTraitsList>;
+    using LsbCrcs = meta::FilterT<IsLsbFirst::template apply, CrcTraitsList>;
     failed += !TestCrcTraits<LsbCrcs>(data, Slices{});
     std::cout << "\nMSB Tests\n";
-    using MsbCrcs =
-            meta::FilterT<IsMsbFirst::template apply, CrcTraitsList>;
+    using MsbCrcs = meta::FilterT<IsMsbFirst::template apply, CrcTraitsList>;
     failed += !TestCrcTraits<MsbCrcs>(data, Slices{});
   });
 
