@@ -115,7 +115,7 @@ bool TestCrcTraits(std::span<const std::byte> data) {
   using Results =
                 std::vector<std::pair<std::string_view, std::vector<TimedCrc>>>;
   Results results;
-  results.reserve(meta::LengthV<CrcTraitsList>);
+  results.reserve(meta::SizeV<CrcTraitsList>);
 
   meta::ForEachType<CrcTraitsList>([&]<class CrcTraits>() {
     auto rv = RunSlices<CrcTraits, SliceVals...>(data);

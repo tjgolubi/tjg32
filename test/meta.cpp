@@ -124,6 +124,216 @@ constexpr bool TestForEachType() noexcept {
 
 static_assert(TestForEachType());
 
+// ----- ForEachType: empty list makes no calls (constexpr) -----
+namespace td_empty {
+
+struct Count {
+  static constexpr int start = 123;
+  mutable int n = start;
+
+  template<class T>
+  constexpr void operator()() const { ++n; }
+
+  template<class T>
+  constexpr void operator()(meta::TypeTag<T>) const { ++n; }
+};
+
+constexpr bool Run() {
+  Count c{};
+  meta::ForEachType<meta::TypeList<>>(c);
+  return c.n == Count::start;
+}
+
+static_assert(Run());
+
+} // namespace td_empty
+
+// ----- ForEachType: single-element, both invocation styles -----
+namespace td_single {
+
+struct OpTpl {
+  template<class T>
+  constexpr void operator()() const noexcept {}
+};
+struct OpTag {
+  template<class T>
+  constexpr void operator()(meta::TypeTag<T>) const noexcept {}
+};
+
+using L1 = meta::TypeList<int>;
+
+static_assert(noexcept(meta::ForEachType<L1>(OpTpl{})));
+static_assert(noexcept(meta::ForEachType<L1>(OpTag{})));
+
+} // namespace td_single
+
+// ----- ForEachType: mixed per-T dispatch; noexcept must reflect mix -----
+namespace td_mixed {
+
+using L = meta::TypeList<int, float, long>;
+
+struct Mixed {
+  // Integral T -> template call, noexcept
+  template<class T>
+  constexpr void operator()() const noexcept
+    requires std::is_integral_v<T> {}
+
+  // Non-integral T -> tag call, not noexcept
+  template<class T>
+  constexpr void operator()(meta::TypeTag<T>) const
+    requires (!std::is_integral_v<T>) {}
+};
+
+static_assert(!noexcept(meta::ForEachType<L>(Mixed{})));
+
+// Also check the all-integral case becomes noexcept.
+using Lint = meta::TypeList<int, long, char>;
+static_assert(noexcept(meta::ForEachType<Lint>(Mixed{})));
+
+} // namespace td_mixed
+
+// ----- ForEachType: order sanity (compile-time) -----
+namespace td_order {
+
+template<class T> struct Id;
+template<> struct Id<int>   { static constexpr int v = 0; };
+template<> struct Id<char>  { static constexpr int v = 1; };
+template<> struct Id<long>  { static constexpr int v = 2; };
+template<> struct Id<float> { static constexpr int v = 3; };
+
+using L = meta::TypeList<int, char, long, float>;
+
+struct Rec {
+  int* out; int* idx;
+
+  template<class T>
+  constexpr void operator()() const { out[(*idx)++] = Id<T>::v; }
+
+  template<class T>
+  constexpr void operator()(meta::TypeTag<T>) const
+  { out[(*idx)++] = Id<T>::v; }
+};
+
+constexpr bool Run() {
+  int buf[4] = { -1, -1, -1, -1 };
+  int i = 0;
+  Rec r{ buf, &i };
+  meta::ForEachType<L>(r);
+  return i == 4 && buf[0] == 0 && buf[1] == 1
+         && buf[2] == 2 && buf[3] == 3;
+}
+
+static_assert(Run());
+
+} // namespace td_order
+
+// ----- Concat: quick regression (left-to-right) -----
+namespace td_concat {
+using A = meta::TypeList<int>;
+using B = meta::TypeList<char, long>;
+using C = meta::ConcatT<A, B>;
+static_assert(std::is_same_v<C, meta::TypeList<int, char, long>>);
+} // namespace td_concat
+
+// ----- Filter: stability (preserves order) -----
+namespace td_filter {
+using In  = meta::TypeList<float, int, char, double, long>;
+using Out = meta::FilterT<std::is_integral, In>;
+static_assert(std::is_same_v<Out, meta::TypeList<int, char, long>>);
+} // namespace td_filter
+
+// ----- Unique: stability and idempotence -----
+namespace td_unique {
+// duplicates interleaved; keep firsts, preserve order
+using D = meta::TypeList<int, int, char, int, char, long, long>;
+using U = meta::UniqueT<D>;
+static_assert(std::is_same_v<U, meta::TypeList<int, char, long>>);
+
+// already unique -> unchanged
+using A = meta::TypeList<int, char, long>;
+static_assert(std::is_same_v<meta::UniqueT<A>, A>);
+
+// empty and single
+static_assert(std::is_same_v<meta::UniqueT<meta::TypeList<>>,
+                             meta::TypeList<>>);
+static_assert(std::is_same_v<meta::UniqueT<meta::TypeList<int>>,
+                             meta::TypeList<int>>);
+
+// Contains helper sanity
+static_assert( meta::ContainsV<meta::TypeList<int, char>, int>);
+static_assert(!meta::ContainsV<meta::TypeList<int, char>, float>);
+} // namespace td_unique
+
+// Size, Front and Back
+static_assert(meta::SizeV<meta::TypeList<>> == 0);
+using Labc = meta::TypeList<int,char,long>;
+static_assert(meta::SizeV<Labc> == 3);
+static_assert(std::is_same_v<meta::FrontT<Labc>, int>);
+static_assert(std::is_same_v<meta::BackT<Labc>,  long>);
+
+// Contains
+static_assert( meta::ContainsV<meta::TypeList<int,char>, int>);
+static_assert(!meta::ContainsV<meta::TypeList<int,char>, float>);
+
+// If you have IndexOfC (or IndexOfV) with 0-based index:
+static_assert(meta::IndexOfC<meta::TypeList<int,char,long>, char>::value == 1);
+
+// If you provide a not-found form (IndexOfOrN):
+static_assert(meta::IndexOfV<meta::TypeList<int,char>, float> == -1);
+
+// PopFront
+using PFr = typename meta::Prepend<meta::TypeList<char,long>, int>::type;
+static_assert(std::is_same_v<PFr, meta::TypeList<int,char,long>>);
+
+using PBa = typename meta::Append<meta::TypeList<int,char>, long>::type;
+static_assert(std::is_same_v<PBa, meta::TypeList<int,char,long>>);
+
+using PF  = meta::PopFrontT<meta::TypeList<int,char,long>>;
+static_assert(std::is_same_v<PF, meta::TypeList<char,long>>);
+
+#if 0
+// Transform
+template<class T> struct AddConst { using type = const T; };
+using Tin  = meta::TypeList<int,char,long>;
+using Tout = meta::TransformT<AddConst, Tin>;
+static_assert(std::is_same_v<Tout,
+                             meta::TypeList<const int,const char,const long>>);
+#endif
+
+#if 0
+using Lmix = meta::TypeList<float,int,char,double,long>;
+static_assert(meta::CountIfV<std::is_integral, Lmix> == 3);
+static_assert( meta::AllOfV<std::is_integral, meta::TypeList<int,long>>);
+static_assert(!meta::AllOfV<std::is_integral, Lmix>);
+static_assert( meta::AnyOfV<std::is_floating_point, Lmix>);
+static_assert(!meta::NoneOfV<std::is_integral, Lmix>);
+
+// Partition
+
+using P = meta::PartitionT<std::is_integral, Lmix>;
+// Expect P::First = integrals, P::Second = non-integrals (order preserved)
+static_assert(std::is_same_v<typename P::First,
+                             meta::TypeList<int,char,long>>);
+static_assert(std::is_same_v<typename P::Second,
+                             meta::TypeList<float,double>>);
+// ForEachTypeIf
+
+struct CountInts {
+  int n = 0;
+  template<class T> constexpr void operator()() noexcept
+    requires std::is_integral_v<T> { ++n; }
+  template<class T> constexpr void operator()(meta::TypeTag<T>) noexcept
+    requires std::is_integral_v<T> { ++n; }
+};
+constexpr bool TestFEI() {
+  CountInts c{};
+  meta::ForEachTypeIf<meta::TypeList<int,float,long,char>>(c,
+                                                           std::is_integral{});
+  return c.n == 3;
+}
+static_assert(TestFEI());
+#endif
+
 int main() {
   if (!TestForEachType()) {
     std::cout << "TestForEachType failed" << std::endl;

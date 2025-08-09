@@ -25,10 +25,10 @@ constexpr bool IsEmptyV<TypeList<>> = true;
 
 /// Get the number of types in the list
 template<typename List>
-constexpr std::size_t LengthV = 0;
+constexpr std::size_t SizeV = 0;
 
 template<typename... Types>
-constexpr std::size_t LengthV<TypeList<Types...>> = sizeof...(Types);
+constexpr std::size_t SizeV<TypeList<Types...>> = sizeof...(Types);
 
 /// Get the first type in a typelist
 template<typename List>
@@ -53,6 +53,19 @@ struct PopFront<TypeList<Head, Tail...>> {
 
 template<typename List>
 using PopFrontT = typename PopFront<List>::type;
+
+// --- BackT ---
+
+template<class List> struct Back;
+
+template<class T>
+struct Back<TypeList<T>> { using type = T; };
+
+template<class T, class... Ts>
+struct Back<TypeList<T, Ts...>> : Back<TypeList<Ts...>> { };
+
+template<class List>
+using BackT = typename Back<List>::type;
 
 /// Prepend a type before the start of a typelist
 template<typename List, typename T>
@@ -116,14 +129,6 @@ struct TryNthType<I, TypeList<Types...>> {
 template<int I, typename List>
 using TryNthTypeT = typename TryNthType<I, List>::type;
 
-/// Check whether a type T exists in the list
-template<typename List, typename T>
-constexpr bool ContainsV = false;
-
-template<typename Head, typename... Tail, typename T>
-constexpr bool ContainsV<TypeList<Head, Tail...>, T> =
-  std::is_same_v<Head, T> || ContainsV<TypeList<Tail...>, T>;
-
 /// Get the index of a type in the typelist, or -1 if not found
 template<typename List, typename T>
 struct IndexOf;
@@ -144,18 +149,78 @@ struct IndexOf<TypeList<Head, Tail...>, T> {
 template<typename List, typename T>
 constexpr int IndexOfV = IndexOf<List, T>::value;
 
-/// Apply a metafunction F<T> to each type in the list
-template<template<typename> typename F, typename List>
-struct Transform;
+template<class List, class T>
+using IndexOfC = IndexOf<List, T>; // 'C' to indicate constant type
 
-template<template<typename> typename F, typename... Types>
-struct Transform<F, TypeList<Types...>> {
-  using type = TypeList<F<Types>...>;
+/// Apply a metafunction F<T> to each type in the list
+
+// --- TransformT ---
+// Works with either:  (a) template<class> struct F { using type = ...; }
+// or                  (b) template<class> using F = ...;
+
+namespace detail {
+
+template<template<class> class F, class T>
+struct Invoke {
+  // prefer F<T>::type if present
+  template<class U>
+  static auto test(int) -> std::type_identity<typename F<U>::type>;
+  // else fall back to F<U> (alias template or plain type)
+  template<class U>
+  static auto test(...) -> std::type_identity<F<U>>;
+
+  using type = typename decltype(test<T>(0))::type;
 };
 
-template<template<typename> typename F, typename List>
+} // detail
+
+template<template<class> class F, class List> struct Transform;
+
+template<template<class> class F, class... Ts>
+struct Transform<F, TypeList<Ts...>> {
+  using type = TypeList<typename detail::Invoke<F, Ts>::type...>;
+};
+
+template<template<class> class F, class List>
 using TransformT = typename Transform<F, List>::type;
 
+// ----- Contains -----
+
+template<class List, class T>
+struct Contains;
+
+template<class T>
+struct Contains<TypeList<>, T> : std::false_type {};
+
+template<class Head, class... Tail, class T>
+struct Contains<TypeList<Head, Tail...>, T>
+  : std::conditional_t<std::is_same_v<Head, T>,
+                        std::true_type,
+                        Contains<TypeList<Tail...>, T>> {};
+
+template<class List, class T>
+inline constexpr bool ContainsV = Contains<List, T>::value;
+
+// ----- Unique (stable: keeps first occurrences, preserves order) -----
+
+template<class List>
+struct Unique;
+
+template<>
+struct Unique<TypeList<>> { using type = TypeList<>; };
+
+template<class T, class... Ts>
+struct Unique<TypeList<T, Ts...>> {
+private:
+  using TailU = typename Unique<TypeList<Ts...>>::type;
+public:
+  using type = std::conditional_t<ContainsV<TailU, T>,
+                                  TailU,
+                                  ConcatT<TypeList<T>, TailU>>;
+};
+
+template<class List>
+using UniqueT = typename Unique<List>::type;
 /// Filter a typelist using a predicate P<T>::value
 template<template<typename> typename P, typename List>
 struct Filter;
@@ -178,36 +243,51 @@ public:
 template<template<typename> typename P, typename List>
 using FilterT = typename Filter<P, List>::type;
 
-/// Visit each type in a typelist using a templated callable
-template<typename List, typename Fn>
-constexpr void ForEachType(Fn&& fn);
-
 template<class T> struct TypeTag {};
 
 namespace detail {
 
+// Per-T: detect which invocation exists and use its noexcept
+template<class T, class F>
+consteval bool NoexceptFor() {
+  using FR = std::remove_reference_t<F>;
+  if constexpr (requires(FR& g) { g.template operator()<T>(); }) {
+    return noexcept(std::declval<FR&>().template operator()<T>());
+  } else if constexpr (requires(FR& g) { g(TypeTag<T>{}); }) {
+    return noexcept(std::declval<FR&>()(TypeTag<T>{}));
+  } else {
+    return false; // CallOne will static_assert anyway
+  }
+}
+
 template<class T, class F>
 constexpr void CallOne(F&& f) {
-  if constexpr (requires { f.template operator()<T>(); }) {
+  if constexpr (requires(F& g) { g.template operator()<T>(); }) {
     f.template operator()<T>();
-  } else if constexpr (requires { f(TypeTag<T>{}); }) {
+  } else if constexpr (requires(F& g) { g(TypeTag<T>{}); }) {
     f(TypeTag<T>{});
   } else {
     static_assert(sizeof(T) == 0,
-      "Need operator()<T>() or operator()(TypeTag<T>)");
+      "ForEachType: need operator()<T>() or operator()(TypeTag<T>)");
   }
-} // CallOne
+}
 
 template<class F, class... Ts>
-constexpr void ForEachTypeImpl(F&& f, TypeList<Ts...>) {
-  (CallOne<Ts>(f), ...);     // preserves order; constexpr-OK
+constexpr void ForEachTypes(F&& f, TypeList<Ts...>) {
+  (CallOne<Ts>(f), ...);
 }
 
 } // detail
 
+// Public API: noexcept iff every per-T invocation is noexcept
 template<class List, class F>
-constexpr void ForEachType(F&& f) {
-  detail::ForEachTypeImpl(std::forward<F>(f), List{});
+constexpr void ForEachType(F&& f) noexcept(
+  []<class... Ts>(TypeList<Ts...>*) {
+    return (detail::NoexceptFor<Ts, F>() && ...);
+  }(static_cast<List*>(nullptr))
+) {
+  detail::ForEachTypes(std::forward<F>(f), List{});
 }
 
 } // meta
+  // ======================================================================

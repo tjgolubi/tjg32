@@ -60,7 +60,7 @@ int main() {
       ++failCount;
   });
 
-  std::cout << failCount << '/' << meta::LengthV<Crcs>
+  std::cout << failCount << '/' << meta::SizeV<Crcs>
             << " tests failed." << std::endl;
   return (failCount == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 } // main
