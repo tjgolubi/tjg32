@@ -291,14 +291,17 @@ static_assert(std::is_same_v<PBa, meta::TypeList<int,char,long>>);
 using PF  = meta::PopFrontT<meta::TypeList<int,char,long>>;
 static_assert(std::is_same_v<PF, meta::TypeList<char,long>>);
 
-#if 0
 // Transform
 template<class T> struct AddConst { using type = const T; };
 using Tin  = meta::TypeList<int,char,long>;
 using Tout = meta::TransformT<AddConst, Tin>;
 static_assert(std::is_same_v<Tout,
                              meta::TypeList<const int,const char,const long>>);
-#endif
+
+// Transform (alias template also works)
+template<class T> using AddConstA = std::add_const_t<T>;
+using Tout2 = meta::TransformT<AddConstA, Tin>;
+static_assert(std::is_same_v<Tout2, Tout>);
 
 #if 0
 using Lmix = meta::TypeList<float,int,char,double,long>;
