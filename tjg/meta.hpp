@@ -54,6 +54,16 @@ struct PopFront<TypeList<Head, Tail...>> {
 template<typename List>
 using PopFrontT = typename PopFront<List>::type;
 
+/// Prepend a type before the start of a typelist
+template<typename List, typename T>
+struct Prepend;
+
+template<typename... Ts, typename T>
+struct Prepend<TypeList<Ts...>, T> { using type = TypeList<T, Ts...>; };
+
+template<typename List, typename NewType>
+using PrependT = typename Prepend<List, NewType>::type;
+
 /// Append a type to the end of a typelist
 template<typename List, typename NewType>
 struct Append;
@@ -65,6 +75,18 @@ struct Append<TypeList<Types...>, NewType> {
 
 template<typename List, typename NewType>
 using AppendT = typename Append<List, NewType>::type;
+
+/// Append a typelist to the end of a typelist
+template<typename List1, typename List2>
+struct Concat;
+
+template<typename... Ts, typename... Us>
+struct Concat<TypeList<Ts...>, TypeList<Us...>> {
+  using type = TypeList<Ts..., Us...>;
+};
+
+template<typename List1, typename List2>
+using ConcatT = typename Concat<List1, List2>::type;
 
 /// Get the type at index I (int). Fails to compile if out of bounds.
 template<int I, typename List>
@@ -134,20 +156,6 @@ struct Transform<F, TypeList<Types...>> {
 template<template<typename> typename F, typename List>
 using TransformT = typename Transform<F, List>::type;
 
-/// Visit each type in a typelist using a templated callable
-template<typename List, typename Fn>
-constexpr void ForEachType(Fn&& fn);
-
-template<typename... Types, typename Fn>
-constexpr void ForEachTypeImpl(TypeList<Types...>, Fn&& fn) {
-  (fn.template operator()<Types>(), ...);
-}
-
-template<typename List, typename Fn>
-constexpr void ForEachType(Fn&& fn) {
-  ForEachTypeImpl(List{}, std::forward<Fn>(fn));
-}
-
 /// Filter a typelist using a predicate P<T>::value
 template<template<typename> typename P, typename List>
 struct Filter;
@@ -162,13 +170,44 @@ struct Filter<P, TypeList<Head, Tail...>> {
 private:
   using TailResult = typename Filter<P, TypeList<Tail...>>::type;
 public:
-  using type = std::conditional_t<
-    P<Head>::value,
-    typename Append<TailResult, Head>::type,
-    TailResult>;
+  using type = std::conditional_t<P<Head>::value,
+                                  typename Prepend<TailResult, Head>::type,
+                                  TailResult>;
 };
 
 template<template<typename> typename P, typename List>
 using FilterT = typename Filter<P, List>::type;
+
+/// Visit each type in a typelist using a templated callable
+template<typename List, typename Fn>
+constexpr void ForEachType(Fn&& fn);
+
+template<class T> struct TypeTag {};
+
+namespace detail {
+
+template<class T, class F>
+constexpr void CallOne(F&& f) {
+  if constexpr (requires { f.template operator()<T>(); }) {
+    f.template operator()<T>();
+  } else if constexpr (requires { f(TypeTag<T>{}); }) {
+    f(TypeTag<T>{});
+  } else {
+    static_assert(sizeof(T) == 0,
+      "Need operator()<T>() or operator()(TypeTag<T>)");
+  }
+} // CallOne
+
+template<class F, class... Ts>
+constexpr void ForEachTypeImpl(F&& f, TypeList<Ts...>) {
+  (CallOne<Ts>(f), ...);     // preserves order; constexpr-OK
+}
+
+} // detail
+
+template<class List, class F>
+constexpr void ForEachType(F&& f) {
+  detail::ForEachTypeImpl(std::forward<F>(f), List{});
+}
 
 } // meta
