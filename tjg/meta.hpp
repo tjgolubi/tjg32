@@ -221,6 +221,43 @@ public:
 
 template<class List>
 using UniqueT = typename Unique<List>::type;
+
+// ----- CountIf / AnyOf / AllOf / NoneOf -----
+
+template<template<class> class P, class List>
+struct CountIf;
+
+template<template<class> class P, class... Ts>
+struct CountIf<P, TypeList<Ts...>>
+  : std::integral_constant<std::size_t,
+      (std::size_t{0} + ... + (P<Ts>::value ? 1u : 0u))> {};
+
+template<template<class> class P, class List>
+constexpr std::size_t CountIfV = CountIf<P, List>::value;
+
+template<template<class> class P, class List>
+struct AnyOf;
+
+template<template<class> class P, class... Ts>
+struct AnyOf<P, TypeList<Ts...>>
+  : std::bool_constant<(false || ... || bool(P<Ts>::value))> {};
+
+template<template<class> class P, class List>
+constexpr bool AnyOfV = AnyOf<P, List>::value;
+
+template<template<class> class P, class List>
+struct AllOf;
+
+template<template<class> class P, class... Ts>
+struct AllOf<P, TypeList<Ts...>>
+  : std::bool_constant<(true && ... && bool(P<Ts>::value))> {};
+
+template<template<class> class P, class List>
+constexpr bool AllOfV = AllOf<P, List>::value;
+
+template<template<class> class P, class List>
+constexpr bool NoneOfV = !AnyOfV<P, List>;
+
 /// Filter a typelist using a predicate P<T>::value
 template<template<typename> typename P, typename List>
 struct Filter;

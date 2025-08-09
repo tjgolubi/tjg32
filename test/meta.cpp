@@ -315,14 +315,28 @@ static_assert(std::is_same_v<typename P::Second,
                              meta::TypeList<float, double>>);
 } // namespace td_partition
 
-#if 0
-using Lmix = meta::TypeList<float,int,char,double,long>;
-static_assert(meta::CountIfV<std::is_integral, Lmix> == 3);
-static_assert( meta::AllOfV<std::is_integral, meta::TypeList<int,long>>);
-static_assert(!meta::AllOfV<std::is_integral, Lmix>);
-static_assert( meta::AnyOfV<std::is_floating_point, Lmix>);
-static_assert(!meta::NoneOfV<std::is_integral, Lmix>);
+namespace count_if_detail {
 
+using Lmix = meta::TypeList<float, int, char, double, long>;
+
+static_assert(meta::CountIfV<std::is_integral, Lmix> == 3);
+static_assert( meta::AnyOfV<std::is_floating_point, Lmix>);
+static_assert(!meta::AnyOfV<std::is_void, Lmix>);
+static_assert(!meta::AllOfV<std::is_integral, Lmix>);
+static_assert( meta::AllOfV<std::is_integral,
+                            meta::TypeList<int, long>>);
+static_assert( meta::NoneOfV<std::is_const, Lmix>);
+
+// Empty-list identities
+using L0 = meta::TypeList<>;
+static_assert(meta::CountIfV<std::is_integral, L0> == 0);
+static_assert(!meta::AnyOfV<std::is_integral, L0>);
+static_assert( meta::AllOfV<std::is_integral, L0>);
+static_assert( meta::NoneOfV<std::is_integral, L0>);
+
+} // count_if_detail
+
+#if 0
 // ForEachTypeIf
 
 struct CountInts {
