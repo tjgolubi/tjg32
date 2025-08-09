@@ -303,6 +303,18 @@ template<class T> using AddConstA = std::add_const_t<T>;
 using Tout2 = meta::TransformT<AddConstA, Tin>;
 static_assert(std::is_same_v<Tout2, Tout>);
 
+
+// ----- Partition: integrals vs non-integrals (stable) -----
+namespace td_partition {
+using L = meta::TypeList<float, int, char, double, long>;
+using P = meta::Partition<std::is_integral, L>;
+
+static_assert(std::is_same_v<typename P::First,
+                             meta::TypeList<int, char, long>>);
+static_assert(std::is_same_v<typename P::Second,
+                             meta::TypeList<float, double>>);
+} // namespace td_partition
+
 #if 0
 using Lmix = meta::TypeList<float,int,char,double,long>;
 static_assert(meta::CountIfV<std::is_integral, Lmix> == 3);
@@ -311,14 +323,6 @@ static_assert(!meta::AllOfV<std::is_integral, Lmix>);
 static_assert( meta::AnyOfV<std::is_floating_point, Lmix>);
 static_assert(!meta::NoneOfV<std::is_integral, Lmix>);
 
-// Partition
-
-using P = meta::PartitionT<std::is_integral, Lmix>;
-// Expect P::First = integrals, P::Second = non-integrals (order preserved)
-static_assert(std::is_same_v<typename P::First,
-                             meta::TypeList<int,char,long>>);
-static_assert(std::is_same_v<typename P::Second,
-                             meta::TypeList<float,double>>);
 // ForEachTypeIf
 
 struct CountInts {

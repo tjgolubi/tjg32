@@ -243,6 +243,31 @@ public:
 template<template<typename> typename P, typename List>
 using FilterT = typename Filter<P, List>::type;
 
+// Partition<P, List>::First / ::Second
+template<template<class> class P, class List>
+struct Partition;
+
+template<template<class> class P>
+struct Partition<P, TypeList<>> {
+  using First = TypeList<>;
+  using Second = TypeList<>;
+};
+
+template<template<class> class P, class T, class... Ts>
+struct Partition<P, TypeList<T, Ts...>> {
+private:
+  using Rest = Partition<P, TypeList<Ts...>>;
+public:
+  using First =
+    std::conditional_t<P<T>::value,
+                       ConcatT<TypeList<T>, typename Rest::First>,
+                       typename Rest::First>;
+  using Second =
+    std::conditional_t<P<T>::value,
+                       typename Rest::Second,
+                       ConcatT<TypeList<T>, typename Rest::Second>>;
+}; // Partition
+
 template<class T> struct TypeTag {};
 
 namespace detail {
@@ -290,4 +315,3 @@ constexpr void ForEachType(F&& f) noexcept(
 }
 
 } // meta
-  // ======================================================================
