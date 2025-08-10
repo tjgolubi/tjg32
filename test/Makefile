@@ -5,6 +5,9 @@ export PROJDIR := $(abspath ..)
 # SWDEV := $(PROJDIR)/SwDev
 include $(SWDEV)/project.mk
 
+APP:=$(abspath $(HOME)/App)
+BOOST:=$(APP)/boost
+
 TJG:=$(PROJDIR)/tjg
 CRC:=$(PROJDIR)/crc
 
@@ -14,26 +17,23 @@ CRC_TIME_E=CrcTime.$E
 REFLECT_E=Reflect.$E
 INTMATH_E=IntMath.$E
 INTEGER_E=Integer.$E
-META_E=meta.$E
 
 TARGET1=$(CRC_TEST_E)
 TARGET2=$(CRC_TIME_E)
 TARGET3=$(REFLECT_E)
 TARGET4=$(INTMATH_E)
 TARGET5=$(INTEGER_E)
-TARGET6=$(META_E)
-TARGETS=$(TARGET1) $(TARGET2) $(TARGET3) $(TARGET4) $(TARGET5) $(TARGET6)
+TARGETS=$(TARGET1) $(TARGET2) $(TARGET3) $(TARGET4) $(TARGET5)
 
 SRC1:=CrcTest.cpp
 SRC2:=CrcTime.cpp
 SRC3:=Reflect.cpp
 SRC4:=IntMath.cpp
 SRC5:=Integer.cpp
-SRC6:=meta.cpp
-SOURCE:=$(SRC1) $(SRC2) $(SRC3) $(SRC4) $(SRC5) $(SRC6)
+SOURCE:=$(SRC1) $(SRC2) $(SRC3) $(SRC4) $(SRC5)
 
 #SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
-SYSINCL:=
+SYSINCL:=$(BOOST)
 INCLUDE:=$(PROJDIR)
 
 # Must use "=" because LIBS will be changed below.

@@ -3,7 +3,7 @@
 #include "crc/Crc.hpp"
 
 #include "tjg/Integer.hpp"
-#include "tjg/meta.hpp"
+#include "boost/mp11/algorithm.hpp"
 
 #include <concepts>
 #include <utility>
@@ -1544,123 +1544,37 @@ using FastCrc64 = Known<Crc64Ecma182, MaxSlices>;
 
 /// @internal
 namespace test_detail {
+
+namespace mp11 = boost::mp11;
+
 /// Internal list of all predefined CRC traits;
 /// useful for testing and documentation purposes.
 ///
 /// Complete list of all CRC traits contained in this file.
-using KnownCrcs = meta::TypeList<
-  Crc3Gsm,
-  Crc3Rohc,
-  Crc4G704,
-  Crc4Interlaken,
-  Crc5EpcC1g2,
-  Crc5G704,
-  Crc5Usb,
-  Crc6Cdma2000A,
-  Crc6Cdma2000B,
-  Crc6Darc,
-  Crc6G704,
-  Crc6Gsm,
-  Crc7Mmc,
-  Crc7Rohc,
+using KnownCrcs = mp11::mp_list<
+  Crc3Gsm, Crc3Rohc, Crc4G704, Crc4Interlaken, Crc5EpcC1g2, Crc5G704, Crc5Usb,
+  Crc6Cdma2000A, Crc6Cdma2000B, Crc6Darc, Crc6G704, Crc6Gsm, Crc7Mmc, Crc7Rohc,
   Crc7Umts,
-  Crc8Autosar,
-  Crc8Bluetooth,
-  Crc8Cdma2000,
-  Crc8Darc,
-  Crc8DvbS2,
-  Crc8GsmA,
-  Crc8GsmB,
-  Crc8Hitag,
-  Crc8I4321,
-  Crc8ICode,
-  Crc8Lte,
-  Crc8MaximDow,
-  Crc8MifareMad,
-  Crc8Nrsc5,
-  Crc8Opensafety,
-  Crc8Rohc,
-  Crc8SaeJ1850,
-  Crc8Smbus,
-  Crc8Tech3250,
-  Crc8Wcdma,
-  Crc10Atm,
-  Crc10Cdma2000,
-  Crc10Gsm,
-  Crc11Flexray,
-  Crc11Umts,
-  Crc12Cdma2000,
-  Crc12Dect,
-  Crc12Gsm,
-  Crc12Umts,
-  Crc13Bbc,
-  Crc14Darc,
-  Crc14Gsm,
-  Crc15Can,
+  Crc8Autosar, Crc8Bluetooth, Crc8Cdma2000, Crc8Darc, Crc8DvbS2, Crc8GsmA,
+  Crc8GsmB, Crc8Hitag, Crc8I4321, Crc8ICode, Crc8Lte, Crc8MaximDow,
+  Crc8MifareMad, Crc8Nrsc5, Crc8Opensafety, Crc8Rohc, Crc8SaeJ1850, Crc8Smbus,
+  Crc8Tech3250, Crc8Wcdma,
+  Crc10Atm, Crc10Cdma2000, Crc10Gsm, Crc11Flexray, Crc11Umts, Crc12Cdma2000,
+  Crc12Dect, Crc12Gsm, Crc12Umts, Crc13Bbc, Crc14Darc, Crc14Gsm, Crc15Can,
   Crc15Mpt1327,
-  Crc16Arc,
-  Crc16Cdma2000,
-  Crc16Cms,
-  Crc16Dds110,
-  Crc16DectR,
-  Crc16DectX,
-  Crc16Dnp,
-  Crc16En13757,
-  Crc16Genibus,
-  Crc16Gsm,
-  Crc16Ibm3740,
-  Crc16IbmSdlc,
-  Crc16IsoIec144433A,
-  Crc16Kermit,
-  Crc16Lj1200,
-  Crc16M17,
-  Crc16MaximDow,
-  Crc16Mcrf4xx,
-  Crc16Modbus,
-  Crc16Nrsc5,
-  Crc16OpensafetyA,
-  Crc16OpensafetyB,
-  Crc16Profibus,
-  Crc16Riello,
-  Crc16SpiFujitsu,
-  Crc16T10Dif,
-  Crc16Teledisk,
-  Crc16Tms37157,
-  Crc16Umts,
-  Crc16Usb,
-  Crc16Xmodem,
-  Crc17CanFd,
-  Crc21CanFd,
-  Crc24Ble,
-  Crc24FlexrayA,
-  Crc24FlexrayB,
-  Crc24Interlaken,
-  Crc24LteA,
-  Crc24LteB,
-  Crc24Openpgp,
-  Crc24Os9,
-  Crc30Cdma,
+  Crc16Arc, Crc16Cdma2000, Crc16Cms, Crc16Dds110, Crc16DectR, Crc16DectX,
+  Crc16Dnp, Crc16En13757, Crc16Genibus, Crc16Gsm, Crc16Ibm3740, Crc16IbmSdlc,
+  Crc16IsoIec144433A, Crc16Kermit, Crc16Lj1200, Crc16M17, Crc16MaximDow,
+  Crc16Mcrf4xx, Crc16Modbus, Crc16Nrsc5, Crc16OpensafetyA, Crc16OpensafetyB,
+  Crc16Profibus, Crc16Riello, Crc16SpiFujitsu, Crc16T10Dif, Crc16Teledisk,
+  Crc16Tms37157, Crc16Umts, Crc16Usb, Crc16Xmodem,
+  Crc17CanFd, Crc21CanFd, Crc24Ble, Crc24FlexrayA, Crc24FlexrayB,
+  Crc24Interlaken, Crc24LteA, Crc24LteB, Crc24Openpgp, Crc24Os9, Crc30Cdma,
   Crc31Philips,
-  Crc32Aixm,
-  Crc32Autosar,
-  Crc32Base91D,
-  Crc32Bzip2,
-  Crc32CdRomEdc,
-  Crc32Cksum,
-  Crc32Iscsi,
-  Crc32IsoHdlc,
-  Crc32Jamcrc,
-  Crc32Mef,
-  Crc32Mpeg2,
-  Crc32Xfer,
+  Crc32Aixm, Crc32Autosar, Crc32Base91D, Crc32Bzip2, Crc32CdRomEdc, Crc32Cksum,
+  Crc32Iscsi, Crc32IsoHdlc, Crc32Jamcrc, Crc32Mef, Crc32Mpeg2, Crc32Xfer,
   Crc40Gsm,
-  Crc64Ecma182,
-  Crc64GoIso,
-  Crc64Ms,
-  Crc64Nvme,
-  Crc64Redis,
-  Crc64We,
-  Crc64Xz
+  Crc64Ecma182, Crc64GoIso, Crc64Ms, Crc64Nvme, Crc64Redis, Crc64We, Crc64Xz
 >; // KnownCrcs
 
 /// Evaluates to `true` if Bits is not a "normal" multiple of 8.
@@ -1670,7 +1584,7 @@ struct IsAbnormal
                     && T::Bits != 32 && T::Bits != 64> { };
 
 /// CRCs with Bits that are not a multiple of 8.
-using KnownAbnormalCrcs = meta::FilterT<IsAbnormal, KnownCrcs>;
+using KnownAbnormalCrcs = mp11::mp_copy_if<KnownCrcs, IsAbnormal>;
 
 template<std::size_t N>
 struct IsBitsEqual {
@@ -1679,23 +1593,20 @@ struct IsBitsEqual {
 };
 
 template<std::size_t N>
-using KnownNBitCrcs = meta::FilterT<IsBitsEqual<N>::template apply, KnownCrcs>;
+using KnownNBitCrcs =
+                    mp11::mp_copy_if<KnownCrcs, IsBitsEqual<N>::template apply>;
 using Known8BitCrcs  = KnownNBitCrcs< 8>; /// 8-bit CRCs
 using Known16BitCrcs = KnownNBitCrcs<16>; /// 16-bit CRCs
 using Known32BitCrcs = KnownNBitCrcs<32>; /// 32-bit CRCs
 using Known64BitCrcs = KnownNBitCrcs<64>; /// 64-bit CRCs
 
 /// Evaluates to `true` if bits are processed least-significant-first.
-struct IsLsbFirst {
-  template<class T>
-  using apply = std::bool_constant<T::ReflectIn>;
-};
+template<class T>
+struct IsLsbFirst: std::bool_constant<T::ReflectIn> { };
 
 /// Evaluates to `true` if bits are processed most-significant-first.
-struct IsMsbFirst {
-  template<class T>
-  using apply = std::bool_constant<!T::ReflectIn>;
-};
+template<class T>
+struct IsMsbFirst: std::bool_constant<!T::ReflectIn> { };
 
 } // test_detail
 

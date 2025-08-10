@@ -55,12 +55,13 @@ int main() {
 
   using Crcs = tjg::crc::test_detail::KnownCrcs;
 
-  meta::ForEachType<Crcs>([&]<typename CrcTraits>() {
-    if (!Test<CrcTraits>())
+  using namespace boost::mp11;
+  mp_for_each<Crcs>([&](auto I) {
+    if (!Test<decltype(I)>())
       ++failCount;
   });
 
-  std::cout << failCount << '/' << meta::SizeV<Crcs>
+  std::cout << failCount << '/' << mp_size<Crcs>::value
             << " tests failed." << std::endl;
   return (failCount == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 } // main

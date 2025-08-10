@@ -1,7 +1,6 @@
 #include "crc/CrcKnown.hpp"
 
 #include "tjg/SaveIo.hpp"
-#include "tjg/meta.hpp"
 
 #include <chrono>
 #include <vector>
@@ -112,12 +111,14 @@ auto RunSlices(std::span<const std::byte> data) {
 
 template<class CrcTraitsList, std::size_t... SliceVals>
 bool TestCrcTraits(std::span<const std::byte> data) {
+  using namespace boost::mp11;
   using Results =
                 std::vector<std::pair<std::string_view, std::vector<TimedCrc>>>;
   Results results;
-  results.reserve(meta::SizeV<CrcTraitsList>);
+  results.reserve(mp_size<CrcTraitsList>::value);
 
-  meta::ForEachType<CrcTraitsList>([&]<class CrcTraits>() {
+  mp_for_each<CrcTraitsList>([&](auto I) {
+    using CrcTraits = decltype(I);
     auto rv = RunSlices<CrcTraits, SliceVals...>(data);
     results.emplace_back(CrcTraits::Name, std::move(rv));
   });
@@ -171,6 +172,8 @@ bool TestCrcTraits(std::span<const std::byte> data,
 { return TestCrcTraits<CrcTraitsList, SliceVals...>(data); }
 
 int main() {
+  using namespace boost::mp11;
+
   constexpr auto Seed = 12345;
   std::mt19937 rng{Seed};
 
@@ -188,19 +191,20 @@ int main() {
   using namespace tjg::crc::test_detail;
 
   using CrcSets =
-    meta::TypeList<KnownAbnormalCrcs,
-                   Known8BitCrcs,  Known16BitCrcs,
-                   Known32BitCrcs, Known64BitCrcs>;
+    mp_list<KnownAbnormalCrcs,
+                  Known8BitCrcs,  Known16BitCrcs,
+                  Known32BitCrcs, Known64BitCrcs>;
 
   using Slices = std::index_sequence<0, 1, 2, 4, 8>;
 
   int failed = 0;
-  meta::ForEachType<CrcSets>([&]<class CrcTraitsList>() {
+  mp_for_each<CrcSets>([&](auto I) {
+    using CrcTraitsList = decltype(I);
     std::cout << "\nLSB Tests\n";
-    using LsbCrcs = meta::FilterT<IsLsbFirst::template apply, CrcTraitsList>;
+    using LsbCrcs = mp_copy_if<CrcTraitsList, IsLsbFirst>;
     failed += !TestCrcTraits<LsbCrcs>(data, Slices{});
     std::cout << "\nMSB Tests\n";
-    using MsbCrcs = meta::FilterT<IsMsbFirst::template apply, CrcTraitsList>;
+    using MsbCrcs = mp_copy_if<CrcTraitsList, IsMsbFirst>;
     failed += !TestCrcTraits<MsbCrcs>(data, Slices{});
   });
 
@@ -208,8 +212,8 @@ int main() {
 
   {
     using namespace tjg::crc;
-    using DefactoCrcs = meta::TypeList<Crc8::Traits,  Crc16::Traits,
-                                       Crc32::Traits, Crc64::Traits>;
+    using DefactoCrcs = mp_list<Crc8::Traits,  Crc16::Traits,
+                                      Crc32::Traits, Crc64::Traits>;
     failed += !TestCrcTraits<DefactoCrcs>(data, Slices{});
   }
 
