@@ -127,11 +127,6 @@ bool TimedTest() {
     using namespace std;
     cout << setw(8) << TypeName<U>() << '\t';
     cout << result1.elapsed << '\t' << result2.elapsed;
-#if 0
-    cout << setfill('0') << hex;
-    cout << "\t0x" << setw(8) << result1.crc << " 0x" << setw(8) << result2.crc;
-    cout << setfill(' ') << dec;
-#endif
   }
   bool result = (result1.crc == result2.crc);
   if (!result)

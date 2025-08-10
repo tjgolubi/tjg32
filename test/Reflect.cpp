@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <cstddef>
 #include <cstdlib>
+#include <cxxabi.h>
 
 namespace IntMath {
 
@@ -90,6 +91,26 @@ static_assert(IntMath::Reflect(std::uint64_t{0x691f71cbcddb4574}) == std::uint64
 
 constexpr auto LoopCount = 100 * (1 << 20);
 
+template<typename T>
+requires (!std::integral<T>)
+std::string TypeName() noexcept {
+  int status = 0;
+  char* demangled = abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, &status);
+  std::string result = (status == 0 && demangled) ? demangled : typeid(T).name();
+  std::free(demangled);
+  return result;
+} // TypeName
+
+template<std::integral T>
+std::string TypeName() noexcept {
+  std::string s;
+  s.reserve(8);
+  if constexpr (std::is_unsigned_v<T>)
+    s += 'u';
+  s += "int" + std::to_string(8 * sizeof(T)) + "_t";
+  return s;
+}
+
 template<std::unsigned_integral U>
 bool Test(auto& rng) {
   for (int i = LoopCount; i--; ) {
@@ -140,7 +161,8 @@ template<std::unsigned_integral U>
 bool TimedTest() {
   auto intResult = TimedTestInt<U>();
   auto tjgResult = TimedTestTjg<U>();
-  std::cout << tjgResult.elapsed << " " << intResult.elapsed;
+  std::cout << std::setw(8) << TypeName<U>()
+            << '\t' << tjgResult.elapsed << '\t' << intResult.elapsed;
   bool result = (tjgResult.result == intResult.result);
   if (!result)
     std::cout << " WRONG!";
@@ -151,13 +173,8 @@ bool TimedTest() {
 int main() {
   using namespace std;
 
-#if 0
-  constexpr auto Seed = 12345;
-  auto rng32 = std::mt19937{Seed};
-  auto rng64 = std::mt19937_64{Seed};
-#endif
-
   int failCount = 0;
+  std::cout << "Type    \tOld\tNew\n";
   failCount += !TimedTest<std::uint8_t >();
   failCount += !TimedTest<std::uint16_t>();
   failCount += !TimedTest<std::uint32_t>();
