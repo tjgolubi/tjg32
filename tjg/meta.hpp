@@ -339,9 +339,20 @@ constexpr void ForEachTypes(F&& f, TypeList<Ts...>) {
   (CallOne<Ts>(f), ...);
 }
 
+// Per-T gated call: only touches CallOne<T> when P<T>::value is true
+template<template<class> class P, class T, class F>
+constexpr void ForEachTypeIfOne(F&& f) {
+  if constexpr (P<T>::value)
+    CallOne<T>(std::forward<F>(f));
+}
+
+template<template<class> class P, class F, class... Ts>
+constexpr void ForEachTypesIf(F&& f, TypeList<Ts...>) {
+  (ForEachTypeIfOne<P, Ts>(std::forward<F>(f)), ...);
+}
+
 } // detail
 
-// Public API: noexcept iff every per-T invocation is noexcept
 template<class List, class F>
 constexpr void ForEachType(F&& f) noexcept(
   []<class... Ts>(TypeList<Ts...>*) {
@@ -349,6 +360,16 @@ constexpr void ForEachType(F&& f) noexcept(
   }(static_cast<List*>(nullptr))
 ) {
   detail::ForEachTypes(std::forward<F>(f), List{});
+}
+
+template<template<class> class P, class List, class F>
+constexpr void ForEachTypeIf(F&& f) noexcept(
+  []<class... Ts>(TypeList<Ts...>*) {
+    // All passing Ts must be noexcept; non-passing Ts don’t affect it
+    return (( (!P<Ts>::value) || detail::NoexceptFor<Ts, F>() ) && ...);
+  }(static_cast<List*>(nullptr))
+) {
+  detail::ForEachTypesIf<P>(std::forward<F>(f), List{});
 }
 
 } // meta

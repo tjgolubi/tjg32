@@ -336,7 +336,39 @@ static_assert( meta::NoneOfV<std::is_integral, L0>);
 
 } // count_if_detail
 
-#if 0
+// ----- ForEachTypeIf: counts only integrals; order preserved; noexcept deduced
+namespace td_feif {
+
+using L = meta::TypeList<float, int, long, double, char>;
+
+struct Cnt {
+  int n = 0;
+  template<class T> constexpr void operator()() noexcept
+    requires std::is_integral_v<T> { ++n; }
+  template<class T> constexpr void operator()(meta::TypeTag<T>) noexcept
+    requires std::is_integral_v<T> { ++n; }
+};
+
+constexpr bool Run() {
+  Cnt c{};
+  meta::ForEachTypeIf<std::is_integral, L>(c);
+  return c.n == 3;
+}
+static_assert(Run());
+
+// noexcept reflects only the passing Ts
+struct Mixed {
+  // integral path: noexcept
+  template<class T> constexpr void operator()() noexcept
+    requires std::is_integral_v<T> {}
+  // non-integral path exists but won’t be used by ForEachTypeIf
+  template<class T> constexpr void operator()(meta::TypeTag<T>)
+    requires (!std::is_integral_v<T>) {}
+};
+static_assert(noexcept(meta::ForEachTypeIf<std::is_integral, L>(Mixed{})));
+
+} // namespace td_feif
+
 // ForEachTypeIf
 
 struct CountInts {
@@ -345,15 +377,15 @@ struct CountInts {
     requires std::is_integral_v<T> { ++n; }
   template<class T> constexpr void operator()(meta::TypeTag<T>) noexcept
     requires std::is_integral_v<T> { ++n; }
-};
+}; // CountInts
+
 constexpr bool TestFEI() {
-  CountInts c{};
-  meta::ForEachTypeIf<meta::TypeList<int,float,long,char>>(c,
-                                                           std::is_integral{});
-  return c.n == 3;
+  auto c = CountInts{};
+  meta::ForEachTypeIf<std::is_integral, meta::TypeList<int,float,long,char>>(c);
+  return (c.n == 3);
 }
+
 static_assert(TestFEI());
-#endif
 
 int main() {
   if (!TestForEachType()) {
