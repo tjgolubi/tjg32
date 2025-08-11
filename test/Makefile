@@ -7,6 +7,7 @@ include $(SWDEV)/project.mk
 
 APP:=$(abspath $(HOME)/App)
 BOOST:=$(APP)/boost
+MP11:=$(APP)/mp11
 
 TJG:=$(PROJDIR)/tjg
 CRC:=$(PROJDIR)/crc
@@ -15,25 +16,25 @@ CRC:=$(PROJDIR)/crc
 CRC_TEST_E=CrcTest.$E
 CRC_TIME_E=CrcTime.$E
 REFLECT_E=Reflect.$E
-INTMATH_E=IntMath.$E
 INTEGER_E=Integer.$E
+CRCFILE_E=CrcFile.$E
 
 TARGET1=$(CRC_TEST_E)
 TARGET2=$(CRC_TIME_E)
 TARGET3=$(REFLECT_E)
-TARGET4=$(INTMATH_E)
-TARGET5=$(INTEGER_E)
+TARGET4=$(INTEGER_E)
+TARGET5=$(CRCFILE_E)
 TARGETS=$(TARGET1) $(TARGET2) $(TARGET3) $(TARGET4) $(TARGET5)
 
 SRC1:=CrcTest.cpp
 SRC2:=CrcTime.cpp
 SRC3:=Reflect.cpp
-SRC4:=IntMath.cpp
-SRC5:=Integer.cpp
+SRC4:=Integer.cpp
+SRC5:=CrcFile.cpp
 SOURCE:=$(SRC1) $(SRC2) $(SRC3) $(SRC4) $(SRC5)
 
 #SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
-SYSINCL:=$(BOOST)
+SYSINCL:=$(BOOST) $(addsuffix /include, $(MP11))
 INCLUDE:=$(PROJDIR)
 
 # Must use "=" because LIBS will be changed below.
@@ -63,7 +64,4 @@ $(TARGET4): $(OBJ4) $(LIBS)
         $(LINK)
 
 $(TARGET5): $(OBJ5) $(LIBS)
-        $(LINK)
-
-$(TARGET6): $(OBJ6) $(LIBS)
         $(LINK)

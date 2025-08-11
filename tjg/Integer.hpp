@@ -13,6 +13,9 @@ namespace tjg {
 /// @internal
 namespace detail {
 
+constexpr int Index(std::size_t Bits)
+{ return (Bits > 8) + (Bits > 16) + (Bits > 32); }
+
 template<int N>
 struct uint_t_helper;
 
@@ -40,7 +43,7 @@ struct uint_t_helper<3> {
 
 template<std::size_t Bits>
 requires (Bits > 0 && Bits <= 64)
-struct uint_t: detail::uint_t_helper<(Bits > 8) + (Bits > 16) + (Bits > 32)> { };
+struct uint_t: detail::uint_t_helper<detail::Index(Bits)> { };
 
 /// @internal
 namespace detail {
@@ -72,6 +75,6 @@ struct int_t_helper<3> {
 
 template<std::size_t Bits>
 requires (Bits > 0 && Bits <= 64)
-struct int_t: detail::int_t_helper<(Bits > 8) + (Bits > 16) + (Bits > 32)> { };
+struct int_t: detail::int_t_helper<detail::Index(Bits)> { };
 
 } // tjg

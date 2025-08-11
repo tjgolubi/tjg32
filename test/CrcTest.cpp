@@ -45,8 +45,9 @@ bool Test() {
     << ((Crc::Dir == tjg::crc::Endian::LsbFirst) ? "LSB" : "MSB")
     << "\nCheck        = 0x" << setw(width) << Value(Crc::Check)
     << "\nCrc          = 0x" << setw(width) << Value(crc.value())
-    << "\nReflect(Crc) = 0x" << setw(width) << Value(tjg::Reflect(crc.value()))
-      << endl;
+    << "\nReflect(Crc) = 0x" << setw(width) << Value(
+                                            tjg::IntMath::Reflect(crc.value()))
+    << endl;
   return false;
 } // Test
 
