@@ -290,6 +290,8 @@ requires (Slices==2 || Slices==4 || Slices==8)
 constexpr auto Compute(std::unsigned_integral auto crc,
                        std::span<const std::byte> buf) noexcept
 {
+  if (buf.empty())
+    return crc;
   using Uint = decltype(crc);
   using Word = WordT<Slices>::type;
   auto p  = reinterpret_cast<const std::uint8_t*>(buf.data());

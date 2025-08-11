@@ -7,6 +7,7 @@ include $(SWDEV)/project.mk
 
 APP:=$(abspath $(HOME)/App)
 BOOST:=$(APP)/boost
+MP11:=$(APP)/mp11
 
 TJG:=$(PROJDIR)/tjg
 CRC:=$(PROJDIR)/crc
@@ -33,7 +34,7 @@ SRC5:=CrcFile.cpp
 SOURCE:=$(SRC1) $(SRC2) $(SRC3) $(SRC4) $(SRC5)
 
 #SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
-SYSINCL:=$(BOOST)
+SYSINCL:=$(addsuffix /include, $(MP11))
 INCLUDE:=$(PROJDIR)
 
 # Must use "=" because LIBS will be changed below.
