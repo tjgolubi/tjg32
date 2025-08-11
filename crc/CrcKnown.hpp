@@ -35,6 +35,7 @@ struct Known
 
   using Base::reset;
   using Base::update;
+  using Base::updateBit;
 
   /// Extends Crc::value() to reflect the output if ReflectIn != ReflectOut.
   [[nodiscard]]
@@ -43,13 +44,11 @@ struct Known
       return Base::value();
     } else {
       constexpr auto Shift = 8 * sizeof(value_type) - Traits::Bits;
-      return Reflect(Base::value()) >> Shift;
+      return IntMath::Reflect(Base::value()) >> Shift;
     }
   }
 
   constexpr operator value_type() const noexcept { return value(); }
-
-  Known& operator()(bool bit) noexcept { update(bit); return *this; }
 
   Known& operator()(std::byte b) noexcept { update(b); return *this; }
 

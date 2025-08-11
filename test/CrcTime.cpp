@@ -41,17 +41,8 @@ auto RunCrcTestVariantBits(std::span<const std::byte> data) {
   auto start = Clock::now();
   Crc crc;
   for (int i = 0; i != LoopCount; ++i) {
-    for (auto b: data) {
-      for (int j = 0; j != 8; ++j) {
-        if constexpr (CrcTraits::ReflectIn) {
-          crc.update(static_cast<bool>(b & std::byte{0x01}));
-          b >>= 1;
-        } else {
-          crc.update(static_cast<bool>(b & std::byte{0x80}));
-          b <<= 1;
-        }
-      }
-    }
+    for (auto b: data)
+      crc.update(b, 8);
   }
   auto result = crc;
   auto stop = Clock::now();
