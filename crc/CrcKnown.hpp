@@ -31,7 +31,8 @@ struct Known
 
   /// Default constructor. Initial value and xor-output are specified by the
   /// Traits_ class.
-  constexpr Known() noexcept : Base{Traits::Init, Traits::XorOut} { }
+  constexpr explicit Known(value_type init_ = Traits::Init) noexcept
+    : Base{init_, Traits::XorOut} { }
 
   using Base::reset;
   using Base::update;

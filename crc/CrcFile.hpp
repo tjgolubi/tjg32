@@ -1,7 +1,8 @@
-#include "crc/Crc.hpp"
+#include "crc/CrcKnown.hpp"
 
 #include <vector>
 #include <fstream>
+#include <filesystem>
 
 namespace tjg::crc {
 
@@ -17,13 +18,7 @@ concept CrcLike = requires { typename T::value_type; }
 
 } // detail
 
-/// Use CRC-32/ISO-HDLC by default.
-using DefaultFileCrc = Crc<32, 0x04c11db7, Endian::LsbFirst, 8>;
-
-auto FileCrc(const auto& name, auto crc)
-requires detail::CrcLike<decltype(crc)>
-{
-  crc.reset();
+auto FileCrc(const auto& name, detail::CrcLike auto crc) {
   auto in = std::ifstream{};
   in.exceptions(std::ios::failbit | std::ios::badbit);
   in.open(name, std::ios::in | std::ios::binary);
@@ -39,10 +34,20 @@ requires detail::CrcLike<decltype(crc)>
   in.clear();
   in.exceptions(std::ios::failbit | std::ios::badbit);
   in.close();
-  return crc.value();
+  return crc;
 } // FileCrc
 
 inline auto FileCrc(const auto& name)
-{ return FileCrc(name, DefaultFileCrc{0xffffffff, 0xffffffff}); }
+{ return FileCrc(name, Known<Crc32IsoHdlc, 8>{}); }
+
+inline auto FileCksum(const auto& name) {
+  auto crc = FileCrc(name, Known<Crc32Cksum, 8>{});
+  auto size = std::filesystem::file_size(name);
+  while (size != 0) {
+    crc.update(static_cast<std::byte>(size & 0xff));
+    size >>= 8;
+  }
+  return crc;
+}
 
 } // tjg::crc

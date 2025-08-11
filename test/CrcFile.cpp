@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <vector>
 #include <random>
+#include <string_view>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -27,7 +28,7 @@ int main() {
     std::mt19937 rng{Seed};
     rng.seed(Seed);
 
-    auto dataCrc = tjg::crc::FastCrc32{};
+    auto dataCrc = tjg::crc::Known<tjg::crc::Crc32IsoHdlc>{};
 
     const auto fname = fs::path{"crc.tmp"};
     if (exists(fname) && file_size(fname) == FileSize) {
@@ -65,10 +66,10 @@ int main() {
       auto saveId = tjg::SaveIo{cerr};
       cerr << "Running FileCrc..." << flush;
       auto start = Clock::now();
-      auto fileCrc = tjg::crc::FileCrc(fname, dataCrc);
+      auto fileCrc = tjg::crc::FileCrc(fname);
       auto stop  = Clock::now();
       tjg::SetHex(cerr);
-      cerr << " done crc=0x" << setw(8) << fileCrc << endl;
+      cerr << " done crc=0x" << setw(8) << fileCrc.value() << dec << ' ' << fileCrc.value() << endl;
       auto s = chrono::duration<double>(stop - start);
       if (s.count() == 0.0) {
         cout << "Rate = infinite\n";
