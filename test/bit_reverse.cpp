@@ -31,17 +31,28 @@ static_assert(bit_reverse(uint32_t{0x8f6c43c5}) == uint32_t{0xa3c236f1});
 static_assert(bit_reverse(uint32_t{0xea85be38}) == uint32_t{0x1c7da157});
 static_assert(bit_reverse(uint32_t{0xe7f72b2c}) == uint32_t{0x34d4efe7});
 
-static_assert(bit_reverse(uint64_t{0x0000000000000000}) == uint64_t{0x0000000000000000});
-static_assert(bit_reverse(uint64_t{0xffffffffffffffff}) == uint64_t{0xffffffffffffffff});
-static_assert(bit_reverse(uint64_t{0x124884213579eca8}) == uint64_t{0x15379eac84211248});
-static_assert(bit_reverse(uint64_t{0x7826e2e9ea000ed5}) == uint64_t{0xab7000579747641e});
-static_assert(bit_reverse(uint64_t{0x3507f3d820833719}) == uint64_t{0x98ecc1041bcfe0ac});
-static_assert(bit_reverse(uint64_t{0x0101b43f6d17de8e}) == uint64_t{0x717be8b6fc2d8080});
-static_assert(bit_reverse(uint64_t{0x0355ea48d3874068}) == uint64_t{0x1602e1cb1257aac0});
-static_assert(bit_reverse(uint64_t{0x6ba0cdcf77cff1c1}) == uint64_t{0x838ff3eef3b305d6});
-static_assert(bit_reverse(uint64_t{0x9dbeb90e4f225f0c}) == uint64_t{0x30fa44f2709d7db9});
-static_assert(bit_reverse(uint64_t{0xe51717a72902214a}) == uint64_t{0x52844094e5e8e8a7});
-static_assert(bit_reverse(uint64_t{0x691f71cbcddb4574}) == uint64_t{0x2ea2dbb3d38ef896});
+static_assert(bit_reverse(uint64_t{0x0000000000000000})
+                       == uint64_t{0x0000000000000000});
+static_assert(bit_reverse(uint64_t{0xffffffffffffffff})
+                       == uint64_t{0xffffffffffffffff});
+static_assert(bit_reverse(uint64_t{0x124884213579eca8})
+                       == uint64_t{0x15379eac84211248});
+static_assert(bit_reverse(uint64_t{0x7826e2e9ea000ed5})
+                       == uint64_t{0xab7000579747641e});
+static_assert(bit_reverse(uint64_t{0x3507f3d820833719})
+                       == uint64_t{0x98ecc1041bcfe0ac});
+static_assert(bit_reverse(uint64_t{0x0101b43f6d17de8e})
+                       == uint64_t{0x717be8b6fc2d8080});
+static_assert(bit_reverse(uint64_t{0x0355ea48d3874068})
+                       == uint64_t{0x1602e1cb1257aac0});
+static_assert(bit_reverse(uint64_t{0x6ba0cdcf77cff1c1})
+                       == uint64_t{0x838ff3eef3b305d6});
+static_assert(bit_reverse(uint64_t{0x9dbeb90e4f225f0c})
+                       == uint64_t{0x30fa44f2709d7db9});
+static_assert(bit_reverse(uint64_t{0xe51717a72902214a})
+                       == uint64_t{0x52844094e5e8e8a7});
+static_assert(bit_reverse(uint64_t{0x691f71cbcddb4574})
+                       == uint64_t{0x2ea2dbb3d38ef896});
 
 #if defined(TJG_HAS_INT128X)
 
@@ -69,6 +80,5 @@ static_assert(
 #endif
 
 } // tjg
-
 
 int main() { return 0; }

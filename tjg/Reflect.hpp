@@ -4,7 +4,6 @@
 /// Reflect (reverse) bits in an integer.
 
 #pragma once
-
 #include <cstdint>
 #include <cstddef>
 
@@ -46,5 +45,20 @@ constexpr std::uint64_t Reflect(std::uint64_t x) noexcept {
   x = ((x & 0x00000000ffffffff) <<32) | ((x & 0xffffffff00000000) >>32);
   return x;
 } // Reflect
+
+#if defined(__SIZEOF_INT128__)
+
+using uint128_t = unsigned __int128;
+
+constexpr uint128_t U128(std::uint64_t hi, std::uint64_t lo) noexcept
+  { return (uint128_t{hi} << 64) | uint128_t{lo}; }
+
+constexpr uint128_t Reflect(uint128_t x) noexcept {
+  auto hi = Reflect(std::uint64_t(x >> 64));
+  auto lo = Reflect(std::uint64_t(x));
+  return U128(lo, hi);
+} // Reflect
+
+#endif
 
 } // tjg::IntMath
