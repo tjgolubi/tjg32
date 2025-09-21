@@ -18,20 +18,23 @@ CRC_TIME_E=CrcTime.$E
 REFLECT_E=Reflect.$E
 INTEGER_E=Integer.$E
 CRCFILE_E=CrcFile.$E
+BIT_REVERSE_E=bit_reverse.$E
 
 TARGET1=$(CRC_TEST_E)
 TARGET2=$(CRC_TIME_E)
 TARGET3=$(REFLECT_E)
 TARGET4=$(INTEGER_E)
 TARGET5=$(CRCFILE_E)
-TARGETS=$(TARGET1) $(TARGET2) $(TARGET3) $(TARGET4) $(TARGET5)
+TARGET6=$(BIT_REVERSE_E)
+TARGETS=$(TARGET1) $(TARGET2) $(TARGET3) $(TARGET4) $(TARGET5) $(TARGET6)
 
 SRC1:=CrcTest.cpp
 SRC2:=CrcTime.cpp
 SRC3:=Reflect.cpp
 SRC4:=Integer.cpp
 SRC5:=CrcFile.cpp
-SOURCE:=$(SRC1) $(SRC2) $(SRC3) $(SRC4) $(SRC5)
+SRC6:=bit_reverse.cpp
+SOURCE:=$(SRC1) $(SRC2) $(SRC3) $(SRC4) $(SRC5) $(SRC6)
 
 #SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
 SYSINCL:=$(BOOST) $(addsuffix /include, $(MP11))
@@ -64,4 +67,7 @@ $(TARGET4): $(OBJ4) $(LIBS)
         $(LINK)
 
 $(TARGET5): $(OBJ5) $(LIBS)
+        $(LINK)
+
+$(TARGET6): $(OBJ6) $(LIBS)
         $(LINK)

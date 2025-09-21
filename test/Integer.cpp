@@ -8,13 +8,20 @@ concept IntTAvailable = requires { typename IntT<Bits>; };
 
 // Negative tests (works even if IntT is constrained: no member access)
 static_assert(!IntTAvailable<tjg::uint_t,  0>);
-static_assert(!IntTAvailable<tjg::uint_t, 65>);
 static_assert( IntTAvailable<tjg::uint_t,  1>);
-static_assert( IntTAvailable<tjg::uint_t, 64>);
 static_assert(!IntTAvailable<tjg::int_t,   0>);
-static_assert(!IntTAvailable<tjg::int_t,  65>);
 static_assert( IntTAvailable<tjg::int_t,   1>);
+#if defined(TJG_HAS_INT128)
+static_assert(!IntTAvailable<tjg::uint_t,129>);
+static_assert( IntTAvailable<tjg::uint_t,128>);
+static_assert(!IntTAvailable<tjg::int_t, 129>);
+static_assert( IntTAvailable<tjg::int_t, 128>);
+#else
+static_assert(!IntTAvailable<tjg::uint_t, 65>);
+static_assert( IntTAvailable<tjg::uint_t, 64>);
+static_assert(!IntTAvailable<tjg::int_t,  65>);
 static_assert( IntTAvailable<tjg::int_t,  64>);
+#endif
 
 #define UINT_CHECK(B, T) static_assert(std::is_same_v<tjg::uint_t<B>::least, T>)
 
@@ -55,6 +62,13 @@ INT_CHECK(32, std::int32_t);
 INT_CHECK(33, std::int64_t);
 INT_CHECK(63, std::int64_t);
 INT_CHECK(64, std::int64_t);
+
+#if defined(TJG_HAS_INT128)
+UINT_CHECK(127, tjg::uint128_t);
+UINT_CHECK(128, tjg::uint128_t);
+INT_CHECK(127, tjg::int128_t);
+INT_CHECK(128, tjg::int128_t);
+#endif
 
 int main() {
   return 0;
