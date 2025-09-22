@@ -4,6 +4,9 @@
 /// Provides int_t<Bits> and uint_t<Bits>.
 
 #pragma once
+#include <string>
+#include <charconv>
+#include <iosfwd>
 #include <limits>
 #include <cstdint>
 #include <cstddef>
@@ -20,15 +23,47 @@ using std::int16_t;
 using std::int32_t;
 using std::int64_t;
 
+} // tjg
+
 #if defined(__SIZEOF_INT128__)
 #define TJG_HAS_INT128 1
+
+namespace tjg {
+
 using uint128_t = unsigned __int128;
 using int128_t  = signed   __int128;
-constexpr U128(uint64_t hi, uint64_t lo) noexcept
+
+constexpr uint128_t U128(uint64_t hi, uint64_t lo) noexcept
   { return uint128_t{hi} << 64 | uint128_t{lo}; }
-constexpr I128(int64_t hi, int64_t lo) noexcept
+
+constexpr int128_t I128(int64_t hi, int64_t lo) noexcept
   { return int128_t(U128((hi), uint64_t(lo))); }
+
+} // tjg
+
+constexpr std::string to_string(tjg::uint128_t x) noexcept {
+  constexpr std::size_t Size = 42;
+  char buf[Size];
+  auto r = std::to_chars(buf, buf+Size, x, 10);
+  return std::string{buf, r.ptr};
+}
+
+constexpr std::string to_string(tjg::int128_t x) noexcept {
+  constexpr std::size_t Size = 42;
+  char buf[Size];
+  auto r = std::to_chars(buf, buf+Size, x, 10);
+  return std::string{buf, r.ptr};
+}
+
+// Global namespace
+std::ostream& operator<<(std::ostream&, tjg::uint128_t);
+std::ostream& operator<<(std::ostream&, tjg::int128_t);
+std::ostream& operator>>(std::ostream&, tjg::uint128_t&);
+std::ostream& operator>>(std::ostream&, tjg::int128_t&);
+
 #endif
+
+namespace tjg {
 
 template<typename T>
 struct int_fast_t {

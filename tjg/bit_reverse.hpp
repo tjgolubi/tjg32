@@ -31,7 +31,7 @@ constexpr uint32_t bit_reverse(uint32_t x) noexcept
 constexpr uint64_t bit_reverse(uint64_t x) noexcept
   {  return __builtin_bitreverse64(x); }
 
-#if defined(__SIZEOF_INT128__)
+#if defined(TJG_HAS_INT128)
 
 #if defined(__clang__) && __has_builtin(__builtin_bitreverse128)
 
@@ -43,7 +43,7 @@ constexpr uint128_t bit_reverse(uint128_t x) noexcept
 constexpr uint128_t bit_reverse(uint128_t x) noexcept {
   auto hi = static_cast<uint64_t>(x >> 64);
   auto lo = static_cast<uint64_t>(x);
-  return U128(bit_reverse(lo)} << 64), bit_reverse(hi));
+  return U128(bit_reverse(lo), bit_reverse(hi));
 }
 
 #endif // __bultin_bitreverse128
@@ -85,7 +85,7 @@ constexpr T BitReverseImpl(T x, std::index_sequence<I...>) noexcept {
   return x;
 }
 
-template <std::unsigned_integral T>
+template<std::unsigned_integral T>
 constexpr T BitReverse(T x) noexcept {
   constexpr auto W = std::size_t{std::numeric_limits<T>::digits};
   constexpr auto N = std::size_t{std::bit_width(W) - 1};
@@ -98,10 +98,8 @@ static_assert(BitReverse<uint32_t>(0x12345678u) == 0x1e6a2c48u);
 
 } // detail_bit_reverse
 
-template<std::unsigned_integral T>
-constexpr T bit_reverse(T x) noexcept {
-  return detail_bit_reverse::BitReverse(x);
-} // bit_reverse
+constexpr auto bit_reverse(std::unsigned_integral auto x) noexcept
+  { return detail_bit_reverse::BitReverse(x); }
 
 #endif // clang has builtins
 

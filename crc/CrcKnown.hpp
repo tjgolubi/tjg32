@@ -45,7 +45,7 @@ struct Known
       return Base::value();
     } else {
       constexpr auto Shift = 8 * sizeof(value_type) - Traits::Bits;
-      return IntMath::Reflect(Base::value()) >> Shift;
+      return bit_reverse(Base::value()) >> Shift;
     }
   }
 

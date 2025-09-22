@@ -46,7 +46,7 @@ bool Test() {
     << "\nCheck        = 0x" << setw(width) << Value(Crc::Check)
     << "\nCrc          = 0x" << setw(width) << Value(crc.value())
     << "\nReflect(Crc) = 0x" << setw(width) << Value(
-                                            tjg::IntMath::Reflect(crc.value()))
+                                            tjg::bit_reverse(crc.value()))
     << endl;
   return false;
 } // Test

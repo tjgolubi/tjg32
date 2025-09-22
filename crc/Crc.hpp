@@ -1,9 +1,9 @@
 #pragma once
 
-#include "crc/CrcDetail.hpp"
+#include <crc/CrcDetail.hpp>
 
-#include "tjg/Integer.hpp"
-#include "tjg/Reflect.hpp"
+#include <tjg/bit_reverse.hpp>
+#include <tjg/Integer.hpp>
 
 #include <ranges>
 
@@ -41,7 +41,7 @@ protected:
 private:
   static constexpr value_type FastPoly = (Dir == Endian::MsbFirst)
                                        ? (Poly << Shift)
-                                       : (IntMath::Reflect(Poly) >> Shift);
+                                       : (bit_reverse(Poly) >> Shift);
 private:
   const value_type _init;
   const value_type _xor;
@@ -51,7 +51,7 @@ private:
     if constexpr (Dir == Endian::MsbFirst)
       return static_cast<value_type>(init << Shift);
     else
-      return static_cast<value_type>(IntMath::Reflect(init) >> Shift);
+      return static_cast<value_type>(bit_reverse(init) >> Shift);
   } // Init
 
 public:

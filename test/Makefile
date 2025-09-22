@@ -1,61 +1,73 @@
 # Copyright 2025 Terry Golubiewski, all rights reserved.
 
-export PROJNAME:=tjg32
-export PROJDIR := $(abspath ..)
+export PROJNAME := tjg32
+export PROJDIR  := $(abspath ..)
 # SWDEV := $(PROJDIR)/SwDev
 include $(SWDEV)/project.mk
 
-APP:=$(abspath $(HOME)/App)
-BOOST:=$(APP)/boost
-MP11:=$(APP)/mp11
+APP   := $(abspath $(HOME)/App)
+BOOST := $(APP)/boost
+MP11  := $(APP)/mp11
+GSL   := $(APP)/GSL
+GTEST := $(APP)/googletest
 
-TJG:=$(PROJDIR)/tjg
-CRC:=$(PROJDIR)/crc
+TJG := $(PROJDIR)/tjg
+CRC := $(PROJDIR)/crc
+
+PROJ_LIB := $(PROJDIR)/lib
+PROJ_SRC := $(PROJDIR)/src
+PROJ_INC := $(PROJDIR)
+
+GTEST_LIB:=$(GTEST)/build/lib
+GTEST_INC:=$(GTEST)/googletest
 
 # Must use "=" instead of ":=" because $E will be defined below.
 CRC_TEST_E=CrcTest.$E
 CRC_TIME_E=CrcTime.$E
-REFLECT_E=Reflect.$E
+BIT_REVERSE_E=bit_reverse.$E
 INTEGER_E=Integer.$E
 CRCFILE_E=CrcFile.$E
-BIT_REVERSE_E=bit_reverse.$E
-RACE_E=race.$E
+INT128_IO_E=int128_io.$E
 
 TARGET1=$(CRC_TEST_E)
 TARGET2=$(CRC_TIME_E)
-TARGET3=$(REFLECT_E)
+TARGET3=$(BIT_REVERSE_E)
 TARGET4=$(INTEGER_E)
 TARGET5=$(CRCFILE_E)
-TARGET6=$(BIT_REVERSE_E)
-TARGET7=$(RACE_E)
-TARGETS=$(TARGET1) $(TARGET2) $(TARGET3) $(TARGET4) $(TARGET5) $(TARGET6) $(TARGET7)
+TARGET6=$(INT128_IO_E)
+TARGETS=$(TARGET1) $(TARGET2) $(TARGET3) $(TARGET4) $(TARGET5) $(TARGET6)
 
 SRC1:=CrcTest.cpp
 SRC2:=CrcTime.cpp
-SRC3:=Reflect.cpp
+SRC3:=bit_reverse.cpp
 SRC4:=Integer.cpp
 SRC5:=CrcFile.cpp
-SRC6:=bit_reverse.cpp
-SRC7:=race.cpp
-SOURCE:=$(SRC1) $(SRC2) $(SRC3) $(SRC4) $(SRC5) $(SRC6) $(SRC7)
+SRC6:=int128_io.cpp
+SOURCE:=$(SRC1) $(SRC2) $(SRC3) $(SRC4) $(SRC5) $(SRC6)
 
 #SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
-SYSINCL:=$(BOOST) $(addsuffix /include, $(MP11))
-INCLUDE:=$(PROJDIR)
+SYSINCL:=$(BOOST) $(addsuffix /include, $(MP11) $(GSL) $(GTEST_INC))
+INCLUDE:=$(PROJ_INC)
 
 # Must use "=" because LIBS will be changed below.
-LIBS=
+LIBS = $(PROJ_LIB)/libtjg32$(COMPILER)$(DBGSFX).$A
 
 #DEBUG=1
+
+LIBPATH=$(GTEST_LIB)
+LDLIBS=-lgtest -lgtest_main
 
 include $(SWDEV)/$(COMPILER).mk
 include $(SWDEV)/build.mk
 
 .ONESHELL:
 
-.PHONY: all clean scour install uninstall
+.PHONY: test
 
-all: depend $(TARGETS)
+test:	depend $(CRC_TEST_E) $(CRC_TIME_E) $(INT128_IO_E)
+	./$(CRC_TEST_E)
+	./$(CRC_TIME_E)
+	./$(INT128_IO_E)
 
 $(TARGET1): $(OBJ1) $(LIBS)
         $(LINK)
@@ -73,7 +85,4 @@ $(TARGET5): $(OBJ5) $(LIBS)
         $(LINK)
 
 $(TARGET6): $(OBJ6) $(LIBS)
-        $(LINK)
-
-$(TARGET7): $(OBJ7) $(LIBS)
         $(LINK)

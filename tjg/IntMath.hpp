@@ -4,33 +4,41 @@
 ///
 /// Integer math routines.
 #pragma once
-
+#include <tjg/Integer.hpp>
 #include <concepts>
 #include <bit>
 
 /// Integer math routines.
 namespace tjg::IntMath {
 
+/// Reflect (reverse order of) bits.
+[[deprecated("use tjg::bit_reverse() instead")]]
+constexpr auto Reflect(std::unsigned_integral auto x) noexcept
+  { return bit_reverse(x); }
+
 /// The number of set bits.
 [[deprecated("use std::popcount() instead")]]
 constexpr int NumOnes(std::unsigned_integral auto x) noexcept
-{ return std::popcount(x); }
+  { return std::popcount(x); }
 
 /// Bit position of the right-most-one, the least-significant set bit.
 constexpr int lmo(std::unsigned_integral auto x) noexcept
-{ return std::bit_width(x) - 1; }
+  { return std::bit_width(x) - 1; }
 
 /// Bit position of the right-most-one, the least-significant set bit.
 constexpr int rmo(std::unsigned_integral auto x) noexcept
-{ return (x == T{0}) ? -1 : std::countr_zero(x); }
+  { return (x == T{0}) ? -1 : std::countr_zero(x); }
 
 /// Value of the right-most-one, the least-significant set bit.
 constexpr auto rmb(std::unsigned_integral auto x) noexcept
-{ return (x == T{0}) ? T{0} : (T{1} << std::countr_zero(x)); }
+  { return x & -x; }
+
+constexpr auto clear_rmb(std::unsigned_integral auto x) noexcept
+  { return x & (x - 1); }
 
 /// Value of the left-most-one, the most-significant set bit.
 constexpr auto lmb(std::unsigned_integral auto x) noexcept
-{ return std::bit_floor(x); }
+  { return std::bit_floor(x); }
 
 /// Represents the parity (even or odd) of an integer.
 class Parity {
