@@ -1,4 +1,5 @@
 #include <tjg/Integer.hpp>
+#include <system_error>
 #include <charconv>
 #include <string_view>
 #include <ostream>
@@ -40,15 +41,14 @@ void Emit(std::ostream& os, tjg::uint128_t mag, char sign='\0') {
   }
 
   auto r = to_chars(p, buf + BufSize, mag, base);
-  if (r.ec != std::errc{})
-    throw std::logic_error{"128-bit operator<<: std::to_chars() failed"};
+  if (r.ec != std::errc{}) {
+    auto ec = std::make_error_code(r.ec);
+    throw std::system_error{ec, "128-bit operator<<: std::to_chars() failed"};
+  }
 
   if (upper) {
-    for (auto pp = p; pp < r.ptr; ++pp) {
-      char c = *pp;
-      if (c >= 'a' && c <= 'f')
-        *pp = static_cast<char>(c - 'a' + 'A');
-    }
+    for (auto pp = p; pp < r.ptr; ++pp)
+      *pp ^= (*pp & 0x40) >> 1;
   }
 
   auto pfx   = string_view{buf, p};

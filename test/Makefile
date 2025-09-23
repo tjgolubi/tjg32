@@ -26,16 +26,16 @@ CRC_TEST_E=CrcTest.$E
 CRC_TIME_E=CrcTime.$E
 BIT_REVERSE_E=bit_reverse.$E
 INTEGER_E=Integer.$E
-CRCFILE_E=CrcFile.$E
+CRC_FILE_E=CrcFile.$E
 INT128_IO_E=int128_io.$E
 
-TARGET1=$(CRC_TEST_E)
-TARGET2=$(CRC_TIME_E)
-TARGET3=$(BIT_REVERSE_E)
-TARGET4=$(INTEGER_E)
-TARGET5=$(CRCFILE_E)
-TARGET6=$(INT128_IO_E)
-TARGETS=$(TARGET1) $(TARGET2) $(TARGET3) $(TARGET4) $(TARGET5) $(TARGET6)
+TGT1=$(CRC_TEST_E)
+TGT2=$(CRC_TIME_E)
+TGT3=$(BIT_REVERSE_E)
+TGT4=$(INTEGER_E)
+TGT5=$(CRC_FILE_E)
+TGT6=$(INT128_IO_E)
+TARGETS=$(TGT1) $(TGT2) $(TGT3) $(TGT4) $(TGT5) $(TGT6)
 
 SRC1:=CrcTest.cpp
 SRC2:=CrcTime.cpp
@@ -54,35 +54,47 @@ LIBS = $(PROJ_LIB)/libtjg32$(COMPILER)$(DBGSFX).$A
 
 #DEBUG=1
 
-LIBPATH=$(GTEST_LIB)
-LDLIBS=-lgtest -lgtest_main
+LIBPATH:=$(GTEST_LIB)
 
 include $(SWDEV)/$(COMPILER).mk
 include $(SWDEV)/build.mk
 
+LDLIBS+=-lgtest -lgtest_main
+
+SHELL:=/usr/bin/bash
 .ONESHELL:
 
 .PHONY: test
 
-test:	depend $(CRC_TEST_E) $(CRC_TIME_E) $(INT128_IO_E)
-	./$(CRC_TEST_E)
-	./$(CRC_TIME_E)
-	./$(INT128_IO_E)
+log/%.log: %.$E
+	mkdir -p $(dir $@)
+	"./$<" 2>&1 | tee $@
 
-$(TARGET1): $(OBJ1) $(LIBS)
-        $(LINK)
+log/int128_io.json: $(INT128_IO_E)
+	mkdir -p $(dir $@)
+	./$(INT128_IO_E) --gtest_output=json:$@
 
-$(TARGET2): $(OBJ2) $(LIBS)
-        $(LINK)
+CLEAN += crc.tmp log
 
-$(TARGET3): $(OBJ3) $(LIBS)
-        $(LINK)
+LOGFILES:=$(patsubst %.exe, log/%.log, $(TARGETS))
+LOGFILES:=$(patsubst %/int128_io.log, %/int128_io.json, $(LOGFILES))
 
-$(TARGET4): $(OBJ4) $(LIBS)
-        $(LINK)
+test: depend $(LOGFILES)
 
-$(TARGET5): $(OBJ5) $(LIBS)
-        $(LINK)
+$(TGT1): $(OBJ1) $(LIBS)
+	$(LINK)
 
-$(TARGET6): $(OBJ6) $(LIBS)
-        $(LINK)
+$(TGT2): $(OBJ2) $(LIBS)
+	$(LINK)
+
+$(TGT3): $(OBJ3) $(LIBS)
+	$(LINK)
+
+$(TGT4): $(OBJ4) $(LIBS)
+	$(LINK)
+
+$(TGT5): $(OBJ5) $(LIBS)
+	$(LINK)
+
+$(TGT6): $(OBJ6) $(LIBS)
+	$(LINK)

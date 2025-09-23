@@ -4,6 +4,7 @@
 /// Provides int_t<Bits> and uint_t<Bits>.
 
 #pragma once
+#include <system_error>
 #include <string>
 #include <charconv>
 #include <iosfwd>
@@ -41,17 +42,25 @@ constexpr int128_t I128(int64_t hi, int64_t lo) noexcept
 
 } // tjg
 
-constexpr std::string to_string(tjg::uint128_t x) noexcept {
+constexpr std::string to_string(tjg::uint128_t x) {
   constexpr std::size_t Size = 42;
   char buf[Size];
-  auto r = std::to_chars(buf, buf+Size, x, 10);
+  auto r = std::to_chars(buf, buf+Size, x);
+  if (r.ec != std::errc{}) {
+    auto ec = std::make_error_code(r.ec);
+    throw std::system_error{ec, "to_string(uint128_t): std::to_chars failed"};
+  }
   return std::string{buf, r.ptr};
 }
 
-constexpr std::string to_string(tjg::int128_t x) noexcept {
+constexpr std::string to_string(tjg::int128_t x) {
   constexpr std::size_t Size = 42;
   char buf[Size];
-  auto r = std::to_chars(buf, buf+Size, x, 10);
+  auto r = std::to_chars(buf, buf+Size, x);
+  if (r.ec != std::errc{}) {
+    auto ec = std::make_error_code(r.ec);
+    throw std::system_error{ec, "to_string(int128_t): std::to_chars failed"};
+  }
   return std::string{buf, r.ptr};
 }
 

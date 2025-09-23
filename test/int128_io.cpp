@@ -1,8 +1,10 @@
 #include <tjg/Integer.hpp>
 #include <gtest/gtest.h>
-#include <iomanip>
 #include <sstream>
 #include <string>
+#include <limits>
+#include <iomanip>
+#include <charconv>
 
 using tjg::uint128_t;
 using tjg::int128_t;
@@ -189,4 +191,56 @@ TEST(ToString, U128ToString) {
 TEST(ToString, I128ToString) {
   auto v = static_cast<int128_t>(-7890);
   EXPECT_EQ(to_string(v), "-7890");
+}
+
+TEST(ToString, I128Min) {
+  const auto v = std::numeric_limits<int128_t>::min();
+  const auto s = to_string(v);
+  const auto l = s.size();
+  char buf[128];
+  const auto end = buf + 128;
+  const auto r = std::to_chars(buf, end, v);
+  const auto t = std::string_view{buf, r.ptr};
+  EXPECT_EQ(r.ec, std::errc{});
+  EXPECT_EQ(r.ptr, (buf + l));
+  EXPECT_EQ(s, t);
+}
+
+TEST(ToString, I128Max) {
+  const auto v = std::numeric_limits<int128_t>::max();
+  const auto s = to_string(v);
+  const auto l = s.size();
+  char buf[128];
+  const auto end = buf + 128;
+  const auto r = std::to_chars(buf, end, v);
+  const auto t = std::string_view{buf, r.ptr};
+  EXPECT_EQ(r.ec, std::errc{});
+  EXPECT_EQ(r.ptr, (buf + l));
+  EXPECT_EQ(s, t);
+}
+
+TEST(ToString, U128Min) {
+  const auto v = std::numeric_limits<uint128_t>::min();
+  const auto s = to_string(v);
+  const auto l = s.size();
+  char buf[128];
+  const auto end = buf + 128;
+  const auto r = std::to_chars(buf, end, v);
+  const auto t = std::string_view{buf, r.ptr};
+  EXPECT_EQ(r.ec, std::errc{});
+  EXPECT_EQ(r.ptr, (buf + l));
+  EXPECT_EQ(s, t);
+}
+
+TEST(ToString, U128Max) {
+  const auto v = std::numeric_limits<uint128_t>::max();
+  const auto s = to_string(v);
+  const auto l = s.size();
+  char buf[128];
+  const auto end = buf + 128;
+  const auto r = std::to_chars(buf, end, v);
+  const auto t = std::string_view{buf, r.ptr};
+  EXPECT_EQ(r.ec, std::errc{});
+  EXPECT_EQ(r.ptr, (buf + l));
+  EXPECT_EQ(s, t);
 }
