@@ -1,123 +1,144 @@
+/// @file
+/// @copyright 2025 Terry Golubiewski, all rights reserved.
+/// @author Terry Golubiewski
+///
+/// Google Test port of the CRC traits test runner.
+///
+/// Uses a typed test suite instantiated from the boost::mp11::mp_list of known
+/// CRC traits in crc/CrcKnown.hpp.  For each trait T, we verify:
+///
+///   1) The "check" vector "123456789" yields the expected T::Check value.
+///   2) Slicing-by-0 and the default slicing configuration compute identical
+///      results over various spans of a constexpr test buffer.
+///
+/// The type list is provided by tjg::crc::test_detail::KnownCrcs (an
+/// mp11::mp_list<...>).  We transform it to a ::testing::Types<...> with
+/// mp11::mp_apply so we do not need to spell out all types.
+
 #include "crc/CrcKnown.hpp"
 
-#include "tjg/SaveIo.hpp"
+#include <gtest/gtest.h>
 
-#include <iostream>
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/algorithm.hpp>
+
+#include <array>
+#include <span>
 #include <iomanip>
-
+#include <ostream>
+#include <sstream>
 #include <concepts>
 #include <type_traits>
 #include <cstddef>
-#include <cstdlib>
+
+// ------------------------------------------------------------------
+// Utilities kept from the original test for readable diagnostics
+// ------------------------------------------------------------------
 
 template<std::unsigned_integral U>
-struct CoutType: public std::conditional<(sizeof(U) == 1), unsigned, U> { };
+struct CoutType: public std::conditional<(sizeof(U) == 1), unsigned, U>
+{ };
 
 template<std::unsigned_integral U>
 auto Value(U x) -> typename CoutType<U>::type
   { return static_cast<typename CoutType<U>::type>(x); }
 
-alignas(16) constexpr auto TestBuf = std::array<std::byte, 9>{
+alignas(64) constexpr auto TestBuf = std::array<std::byte, 9>{
   std::byte{'1'}, std::byte{'2'}, std::byte{'3'},
   std::byte{'4'}, std::byte{'5'}, std::byte{'6'},
   std::byte{'7'}, std::byte{'8'}, std::byte{'9'}
 }; // TestBuf
 
 template<std::size_t N>
-constexpr std::array<std::byte, N> GenerateData() {
-  std::array<std::byte, N> result;
+constexpr auto GenerateData() -> std::array<std::byte, N> {
+  auto result = std::array<std::byte, N>{};
   for (std::size_t i = 0; i != N; ++i)
-    result[i] = std::byte((i+1) & 0xff);
+    result[i] = std::byte((i + 1) & 0xff);
   return result;
 } // GenerateData
 
-constinit auto TestData = GenerateData<256>();
+alignas(64) constinit auto TestData = GenerateData<256>();
 
 template<class CrcTraits, std::size_t Slices>
-void PrintFailure(const tjg::crc::Known<CrcTraits, Slices>& crc,
-                  typename CrcTraits::value_type expected)
+static void AppendFailure(std::ostream& os,
+                          const tjg::crc::Known<CrcTraits, Slices>& crc,
+                          typename CrcTraits::value_type expected)
 {
-  using namespace std;
   using Crc = tjg::crc::Known<CrcTraits>;
-  auto saveIo = tjg::SaveIo{cout};
-  tjg::SetHex(cout);
-  int width = 2 * sizeof(typename Crc::value_type);
-  cout << "\nReturned value is not as expected."
-    << "\nBits         =   " << dec << Crc::Bits << hex
-    << "\nPoly         = 0x" << setw(width) << Value(Crc::Poly)
-    << "\nDir          =   "
-    << ((Crc::Dir == tjg::crc::Endian::LsbFirst) ? "LSB" : "MSB")
-    << "\nSlices       =   " << Slices
-    << "\nCheck        = 0x" << setw(width) << Value(crc.value())
-    << "\nCrc          = 0x" << setw(width) << Value(expected)
-    << "\nReflect(Crc) = 0x" << setw(width) << Value(
-                                            tjg::bit_reverse(crc.value()))
-    << endl;
-} // PrintFailure
+  int width = 2 * int(sizeof(typename Crc::value_type));
+  os << "\nBits         =   " << std::dec << Crc::Bits << std::hex
+     << "\nPoly         = 0x" << std::setw(width) << Value(Crc::Poly)
+     << "\nDir          =   "
+     << ((Crc::Dir == tjg::crc::Endian::LsbFirst) ? "LSB" : "MSB")
+     << "\nSlices       =   " << Slices
+     << "\nCheck        = 0x" << std::setw(width) << Value(crc.value())
+     << "\nCrc          = 0x" << std::setw(width) << Value(expected);
+} // AppendFailure
 
-template<class CrcTraits, std::size_t N=TestData.size(), std::size_t Offset=0>
-requires (N > 0 && N + Offset <= TestData.size())
-bool TestSize() {
-  using namespace std;
-  auto saveIo = tjg::SaveIo{cout};
-  using Crc0 = tjg::crc::Known<CrcTraits, 0>;
-  using Crc  = tjg::crc::Known<CrcTraits>;
-  constexpr auto Data = span{TestData.data()+Offset, N};
-  Crc0 crc0;
-  crc0.update(Data);
-  Crc crc;
-  crc.update(Data);
-  if (crc != crc0) {
-    PrintFailure(crc, crc0);
-    return false;
-  }
-  return true;
-} // TestSize
+// ------------------------------------------------------------------
+// Google Test typed test suite
+// ------------------------------------------------------------------
 
 template<class CrcTraits>
-bool Test() {
-  using namespace std;
-  auto saveIo = tjg::SaveIo{cout};
-  using Crc = tjg::crc::Known<CrcTraits>;
-  cout << "Testing " << Crc::Name;
+class CrcTypedTest: public ::testing::Test { };
+
+using CrcMpList = tjg::crc::test_detail::KnownCrcs;
+
+// Transform mp_list<T...> -> ::testing::Types<T...>
+using CrcTypes = boost::mp11::mp_apply<::testing::Types, CrcMpList>;
+
+TYPED_TEST_SUITE(CrcTypedTest, CrcTypes);
+
+// --------------------------------------------------------------
+// Test 1: The canonical "123456789" check vector
+// --------------------------------------------------------------
+TYPED_TEST(CrcTypedTest, CheckVector) {
+  using Crc = tjg::crc::Known<TypeParam, 8>;
   Crc crc;
   crc.update(TestBuf);
-  if (crc != Crc::Check) {
-    PrintFailure(crc, Crc::Check);
-    return false;
+  auto got = crc.value();
+  auto exp = Crc::Check;
+  EXPECT_EQ(got, exp) << [&]() {
+      std::ostringstream os;
+      AppendFailure(os, crc, exp);
+      return os.str();
+    }();
+}
+
+// --------------------------------------------------------------
+// Test 2: Slicing-by-0 vs slice-by-8
+// --------------------------------------------------------------
+namespace detail {
+
+template<class CrcTraits,
+         std::size_t N = TestData.size(),
+         std::size_t Offset = 0>
+requires (N > 0 && N + Offset <= TestData.size())
+void VaryingSizeSlice0vs8() {
+  using Crc0 = tjg::crc::Known<CrcTraits, 0>;
+  using Crc  = tjg::crc::Known<CrcTraits, 8>;
+  auto data = std::span{TestData.data() + Offset, N};
+  Crc0 c0;
+  c0.update(data);
+  Crc c;
+  c.update(data);
+  if (c != c0) {
+    std::ostringstream os;
+    AppendFailure(os, c, c0.value());
+    ADD_FAILURE() << "Mismatch for span N=" << N
+                  << " Offset=" << Offset << os.str();
   }
+} // ExpectSameForSpan
 
-  if (!TestSize<CrcTraits>())
-    return false;
+} // detail
 
-  if (!TestSize<CrcTraits, 127>())
-    return false;
+TYPED_TEST(CrcTypedTest, SlicingParityOnSpans) {
+  // Mirror the exact calls present in the original test:
+  //  - default N (== TestData.size()) and Offset 0
+  detail::VaryingSizeSlice0vs8<TypeParam>();
+  detail::VaryingSizeSlice0vs8<TypeParam, 127, 0>();
+  detail::VaryingSizeSlice0vs8<TypeParam, 128, 0>();
+  detail::VaryingSizeSlice0vs8<TypeParam, 129, 0>();
+  detail::VaryingSizeSlice0vs8<TypeParam, 129, 5>();
+}
 
-  if (!TestSize<CrcTraits, 128>())
-    return false;
-
-  if (!TestSize<CrcTraits, 129>())
-    return false;
-
-  if (!TestSize<CrcTraits, 129, 5>())
-    return false;
-
-  cout << " PASSED" << endl;
-  return true;
-} // Test
-
-int main() {
-  int failCount = 0;
-
-  using Crcs = tjg::crc::test_detail::KnownCrcs;
-
-  using namespace boost::mp11;
-  mp_for_each<Crcs>([&](auto I) {
-    if (!Test<decltype(I)>())
-      ++failCount;
-  });
-
-  std::cout << failCount << '/' << mp_size<Crcs>::value
-            << " tests failed." << std::endl;
-  return (failCount == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
-} // main

@@ -24,7 +24,7 @@ auto FileCrc(const auto& name, detail::CrcLike auto crc) {
   in.open(name, std::ios::in | std::ios::binary);
   in.exceptions(std::ios::badbit);
   auto buf = std::vector<char>{};
-  buf.resize(1<<20);
+  buf.resize(1<<16);
   while (!in.eof()) {
     in.clear();
     in.read(buf.data(), std::ssize(buf));
@@ -38,10 +38,10 @@ auto FileCrc(const auto& name, detail::CrcLike auto crc) {
 } // FileCrc
 
 inline auto FileCrc(const auto& name)
-{ return FileCrc(name, Known<Crc32IsoHdlc>{}); }
+  { return FileCrc(name, Known<Crc32IsoHdlc, MaxSlices>{}); }
 
 inline auto FileCksum(const auto& name) {
-  auto crc = FileCrc(name, Known<Crc32Cksum>{});
+  auto crc = FileCrc(name, Known<Crc32Cksum, MaxSlices>{});
   auto size = std::filesystem::file_size(name);
   while (size != 0) {
     crc.update(static_cast<std::byte>(size & 0xff));

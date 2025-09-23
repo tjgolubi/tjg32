@@ -11,6 +11,9 @@ MP11  := $(APP)/mp11
 GSL   := $(APP)/GSL
 GTEST := $(APP)/googletest
 
+PRJ   := $(abspath $(HOME)/prj)
+FILE  := $(PRJ)/file
+
 TJG := $(PROJDIR)/tjg
 CRC := $(PROJDIR)/crc
 
@@ -47,10 +50,11 @@ SOURCE:=$(SRC1) $(SRC2) $(SRC3) $(SRC4) $(SRC5) $(SRC6)
 
 #SYSINCL:=$(addsuffix /include, $(UNITS)/core $(UNITS)/systems $(GSL))
 SYSINCL:=$(BOOST) $(addsuffix /include, $(MP11) $(GSL) $(GTEST_INC))
-INCLUDE:=$(PROJ_INC)
+INCLUDE:=$(PROJ_INC) $(FILE)/src
 
 # Must use "=" because LIBS will be changed below.
 LIBS = $(PROJ_LIB)/libtjg32$(COMPILER)$(DBGSFX).$A
+LIBS+= $(FILE)/src/libFile$(COMPILER)$(DBGSFX).$A
 
 #DEBUG=1
 
@@ -73,16 +77,18 @@ log/%.log: %.$E
 	mkdir -p $(dir $@)
 	mv $(notdir $@) $@
 
-log/int128_io.json: $(INT128_IO_E)
+log/%.json: %.$E
 	@set -v
-	./$(INT128_IO_E) --gtest_output=json:$(notdir $@)
+	./$< --gtest_output=json:$(notdir $@)
 	mkdir -p $(dir $@)
 	mv $(notdir $@) $@
 
-CLEAN += crc.tmp log
+CLEAN += log
 
 LOGFILES:=$(patsubst %.exe, log/%.log, $(TARGETS))
 LOGFILES:=$(patsubst %/int128_io.log, %/int128_io.json, $(LOGFILES))
+LOGFILES:=$(patsubst %/CrcTest.log, %/CrcTest.json, $(LOGFILES))
+LOGFILES:=$(patsubst %/CrcFile.log, %/CrcFile.json, $(LOGFILES))
 
 success:
 	@echo "All tests passed."
