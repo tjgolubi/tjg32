@@ -38,10 +38,10 @@ auto FileCrc(const auto& name, detail::CrcLike auto crc) {
 } // FileCrc
 
 inline auto FileCrc(const auto& name)
-{ return FileCrc(name, Known<Crc32IsoHdlc, 8>{}); }
+{ return FileCrc(name, Known<Crc32IsoHdlc>{}); }
 
 inline auto FileCksum(const auto& name) {
-  auto crc = FileCrc(name, Known<Crc32Cksum, 8>{});
+  auto crc = FileCrc(name, Known<Crc32Cksum>{});
   auto size = std::filesystem::file_size(name);
   while (size != 0) {
     crc.update(static_cast<std::byte>(size & 0xff));

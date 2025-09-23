@@ -9,7 +9,7 @@
 
 namespace tjg::crc {
 
-constexpr std::size_t DefaultSlices = 1;
+constexpr std::size_t DefaultSlices = 8;
 constexpr std::size_t MaxSlices = 8;
 
 template<typename T>

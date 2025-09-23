@@ -69,7 +69,8 @@ int main() {
       auto fileCrc = tjg::crc::FileCrc(fname);
       auto stop  = Clock::now();
       tjg::SetHex(cerr);
-      cerr << " done crc=0x" << setw(8) << fileCrc.value() << dec << ' ' << fileCrc.value() << endl;
+      cerr << " done crc=0x" << setw(8) << fileCrc.value()
+           << dec << ' ' << fileCrc.value() << endl;
       auto s = chrono::duration<double>(stop - start);
       if (s.count() == 0.0) {
         cout << "Rate = infinite\n";

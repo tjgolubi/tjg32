@@ -63,23 +63,31 @@ LDLIBS+=-lgtest -lgtest_main
 
 SHELL:=/usr/bin/bash
 .ONESHELL:
+.SHELLFLAGS:=-eu -o pipefail -c
 
-.PHONY: test
+.PHONY: test success
 
 log/%.log: %.$E
+	@set -v
+	./$< 2>&1 | tee $(notdir $@)
 	mkdir -p $(dir $@)
-	"./$<" 2>&1 | tee $@
+	mv $(notdir $@) $@
 
 log/int128_io.json: $(INT128_IO_E)
+	@set -v
+	./$(INT128_IO_E) --gtest_output=json:$(notdir $@)
 	mkdir -p $(dir $@)
-	./$(INT128_IO_E) --gtest_output=json:$@
+	mv $(notdir $@) $@
 
 CLEAN += crc.tmp log
 
 LOGFILES:=$(patsubst %.exe, log/%.log, $(TARGETS))
 LOGFILES:=$(patsubst %/int128_io.log, %/int128_io.json, $(LOGFILES))
 
-test: depend $(LOGFILES)
+success:
+	@echo "All tests passed."
+
+test: depend $(LOGFILES) success
 
 $(TGT1): $(OBJ1) $(LIBS)
 	$(LINK)
