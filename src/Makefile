@@ -1,4 +1,6 @@
-# Copyright 2025 Terry Golubiewski, all rights reserved.
+# @file
+# @copyright 2025 Terry Golubiewski, all rights reserved.
+# @author Terry Golubiewski
 
 PROJNAME := tjg32
 PROJDIR  := $(abspath ..)
@@ -19,6 +21,10 @@ LIBS   :=
 SYSINCL:=
 INCLUDE:= $(PROJ_INC)
 EXTERN :=
+
+SHELL:=/bin/bash
+.SHELLFLAGS:=-eu -o pipefail -c
+.ONESHELL:
 
 include $(SWDEV)/$(COMPILER).mk
 include $(SWDEV)/build.mk

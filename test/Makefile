@@ -1,4 +1,6 @@
-# Copyright 2025 Terry Golubiewski, all rights reserved.
+# @file
+# @copyright 2025 Terry Golubiewski, all rights reserved.
+# @author Terry Golubiewski
 
 export PROJNAME := tjg32
 export PROJDIR  := $(abspath ..)
@@ -60,14 +62,14 @@ LIBS+= $(FILE)/src/libFile$(COMPILER)$(DBGSFX).$A
 
 LIBPATH:=$(GTEST_LIB)
 
+SHELL:=/usr/bin/bash
+.ONESHELL:
+.SHELLFLAGS:=-eu -o pipefail -c
+
 include $(SWDEV)/$(COMPILER).mk
 include $(SWDEV)/build.mk
 
 LDLIBS+=-lgtest -lgtest_main
-
-SHELL:=/usr/bin/bash
-.ONESHELL:
-.SHELLFLAGS:=-eu -o pipefail -c
 
 .PHONY: test success
 
